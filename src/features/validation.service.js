@@ -16,7 +16,7 @@ import { formBlockNamesFor } from "../core/variants.js";
 // so the form isn't red before it has been filled in.
 const TOUCHED_ATTR = "data-dd-touched";
 
-export function createValidationService({ config, dom, state }) {
+export function createValidationService({ config, dom, state, lenis }) {
   const rules = config.validation || {};
   const wrapperSelector = rules.fieldWrapper || ".d-field-container";
   const invalidClass = rules.invalidClass || "invalid";
@@ -118,6 +118,10 @@ export function createValidationService({ config, dom, state }) {
       } else {
         markInvalid(field);
       }
+
+      // .errorMessage flips between display none and block, so the page height
+      // moves every time a field's state changes.
+      lenis?.scheduleRefresh();
 
       return isValid;
     },

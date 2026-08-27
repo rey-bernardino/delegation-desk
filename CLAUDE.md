@@ -34,9 +34,11 @@ static stand-in for the Webflow page — serve the repo root (`python3 -m http.s
 ## Runtime environment
 
 Nothing but `src/` is bundled. jQuery is NOT used — deliberately, so block animation does not depend
-on a Webflow global having loaded first. If a later milestone needs a page global (`hbspt`,
-`Webflow`, `jQuery`), never `import` it; guard access (`window.X?.method`), because load order is
-not guaranteed.
+on a Webflow global having loaded first. Page globals are never `import`ed; access is always guarded
+(`window.X?.method`), because load order is not guaranteed.
+
+Globals the page provides today: **Lenis** (`window.lenis`, plus the page's own
+`window.refreshLenis`), loaded from unpkg at 1.0.33.
 
 ## Architecture
 
@@ -50,6 +52,7 @@ debugging.
 - `src/features/` — `selection.controller` (intro ↔ variant transitions), `fields.service`
   (clearing `.d-field` inputs), `validation.service`, `payload.service` (builds what gets sent),
   `submission.controller` (decides what happens on submit).
+- `src/integrations/` — `lenis.service` (smooth-scroll refresh).
 - `src/ui/` — `animations` (CSS transitions).
 
 `animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
@@ -150,6 +153,27 @@ don't carry into the new category.
 email, company — is shown for every category, so its answers are never category-specific and must
 survive a switch.
 
+### Lenis must be refreshed on every height change
+
+Lenis caches the scroll limit and only recomputes it on resize, and this quiz changes the page height
+drastically. Measured on the live page: the intro allows ~139px of scroll, a filled category ~1508px.
+Without a refresh the limit is stale in both directions — after entering a category the user can
+scroll only 139px and **most of the form is unreachable**; after `[cmd=back]` they can scroll 1508px
+into empty space.
+
+`lenis.service.js` wraps it. `scheduleRefresh()` coalesces to one resize per frame, because a
+staggered cascade changes layout once but fires through several timers. Refresh points:
+
+- `fadeIn` — right after the batched reserve, where layout becomes final for the entering set.
+- `fadeOutElement` / `hideNow` — when a block leaves the flow and the page shrinks.
+- `validation.showFieldState` — `.errorMessage` flips between `display: none` and `block`, so every
+  field state change moves the page height.
+
+Anything added later that shows, hides, or resizes a block must call `lenis?.scheduleRefresh()`.
+
+`lenis.scrollTo()` is used instead of `scrollIntoView` when focusing the first invalid field —
+native smooth scrolling fights Lenis's hijacked scroll.
+
 ## Validation
 
 Every field in the **current** category is required. Tactics follow athena-form's
@@ -219,6 +243,7 @@ included in `answers`. Labels come from `.d-field-label` inside the field's wrap
 - **5 (done)** — required-field validation scoped to the current category; `[form-block=info]`
   inputs are never cleared.
 - **6 (done)** — submit builds both payloads without sending anything.
+- **7 (done)** — Lenis scroll limit refreshed on every height change.
 - Next — decide the destination, then post to Webflow + HubSpot.
 
 ## Conventions

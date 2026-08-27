@@ -43,7 +43,7 @@ function injectStyle(id, css) {
   return true;
 }
 
-export function createAnimations({ config }) {
+export function createAnimations({ config, lenis }) {
   const animationTime = config.animationTime || 600;
 
   function prefersReducedMotion() {
@@ -141,6 +141,8 @@ export function createAnimations({ config }) {
         element.style.opacity = "0";
         element.style.display = "none";
       });
+
+      lenis?.scheduleRefresh();
     },
 
     // Takes the element's layout space at opacity 0, ready to be raised.
@@ -190,6 +192,7 @@ export function createAnimations({ config }) {
       const reveal = () => {
         this.prepareElement(element);
         this.raiseElement(element, time);
+        lenis?.scheduleRefresh();
       };
 
       if (delay > 0) {
@@ -236,6 +239,8 @@ export function createAnimations({ config }) {
         element.style.display = "none";
         element.style.willChange = "";
         element.style.transition = "";
+
+        lenis?.scheduleRefresh();
       }, delay + time + 50);
 
       return element;
@@ -266,6 +271,10 @@ export function createAnimations({ config }) {
 
         // Commit the whole reveal before any transition starts.
         void document.body.offsetHeight;
+
+        // Layout is final for the entering set at this point — the staggered
+        // part only changes opacity. Tell Lenis the page grew.
+        lenis?.scheduleRefresh();
 
         list.forEach((element, index) => {
           const offset = index * stagger;

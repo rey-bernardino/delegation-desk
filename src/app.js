@@ -5,6 +5,7 @@ window.__DELEGATION_DESK__ = true;
 import { QUIZ_CONFIG } from "./config/quiz.config.js";
 import { state } from "./core/state.js";
 import { createDom, SELECTORS } from "./core/dom.js";
+import { createLenisService } from "./integrations/lenis.service.js";
 import { createAnimations } from "./ui/animations.js";
 import { createFieldsService } from "./features/fields.service.js";
 import { createValidationService } from "./features/validation.service.js";
@@ -15,8 +16,11 @@ import { bindEvents } from "./core/events.js";
 
 const dom = createDom();
 
+const lenis = createLenisService();
+
 const animations = createAnimations({
   config: QUIZ_CONFIG,
+  lenis,
 });
 
 const fields = createFieldsService({
@@ -27,6 +31,7 @@ const validation = createValidationService({
   config: QUIZ_CONFIG,
   dom,
   state,
+  lenis,
 });
 
 const payload = createPayloadService({
@@ -68,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selection,
         validation,
         submission,
+        lenis,
       });
 
       animations.fadeIn(dom.getBlocks(QUIZ_CONFIG.intro.blocks), {
@@ -85,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
     config: QUIZ_CONFIG,
     state,
     dom,
+    lenis,
     animations,
     fields,
     validation,

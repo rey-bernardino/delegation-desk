@@ -5,7 +5,13 @@
 
 import { SELECTORS } from "./dom.js";
 
-export function bindEvents({ config, selection, validation, submission }) {
+export function bindEvents({
+  config,
+  selection,
+  validation,
+  submission,
+  lenis,
+}) {
   const fieldSelector = config.fieldSelector || ".d-field";
 
   document.addEventListener("click", (event) => {
@@ -52,10 +58,7 @@ export function bindEvents({ config, selection, validation, submission }) {
         const firstInvalid = result.validation?.firstInvalid;
 
         firstInvalid?.focus?.();
-        firstInvalid?.scrollIntoView?.({
-          behavior: "smooth",
-          block: "center",
-        });
+        lenis?.scrollTo(firstInvalid);
       }
     }
   });
