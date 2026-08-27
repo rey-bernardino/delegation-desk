@@ -205,6 +205,11 @@ destination. A submit click validates, builds both payloads, stores them on `sta
 logs them, and stops the button's own action. When the decision lands,
 `submission.controller.js` is the only file that needs to change.
 
+Both payloads are printed to the console on every submit click, grouped under
+`Delegation Desk — submit payloads (<category>, not sent)`: the quiz payload, its `answers` as a
+`console.table`, the HubSpot payload, and the serialised `quizJson`. A blocked submit logs a warning
+naming the invalid fields instead. `config.submission.logPayloads: false` silences it.
+
 `payload.service.js` builds and never sends. Two shapes, because the destinations want different
 things — both read values off the DOM at build time:
 

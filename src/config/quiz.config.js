@@ -44,6 +44,9 @@ export const QUIZ_CONFIG = {
     // Nothing is posted while this is false — the submit click only builds and
     // stores the payloads. Flip it when the destination is decided.
     enabled: false,
+
+    // Print both payloads to the console on every submit click.
+    logPayloads: true,
   },
 
   // Every quiz variant. A [select] trigger whose value is not in this list is
