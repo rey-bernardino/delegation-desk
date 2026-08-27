@@ -45,12 +45,22 @@
         gap: 12px;
       }
 
+      /* Grid, not flex — exercises the config.blockDisplays override. */
       [block="quiz-nav"] {
         display: none;
-        justify-content: space-between;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
         padding: 16px 32px;
         font-size: 14px;
         color: #a1a1aa;
+      }
+
+      [block="quiz-nav"] [cmd="back"] {
+        cursor: pointer;
+      }
+
+      [block="quiz-nav"] .nav-title {
+        text-align: right;
       }
 
       [block^="h1-"] {
@@ -118,8 +128,8 @@
     </div>
 
     <div block="quiz-nav">
-      <span>&larr; Back</span>
-      <span>Delegation Desk</span>
+      <span cmd="back">&larr; Back</span>
+      <span class="nav-title">Delegation Desk</span>
     </div>
 
     <div block="h1-travel">Let's plan your travel.</div>
@@ -131,32 +141,32 @@
     <div block="form-blocks">
       <div form-block="travel">
         <label>Where to?</label>
-        <input type="text" name="travel_destination" />
+        <input type="text" name="travel_destination" class="d-field" />
       </div>
 
       <div form-block="gift">
         <label>Who is it for?</label>
-        <input type="text" name="gift_recipient" />
+        <input type="text" name="gift_recipient" class="d-field" />
       </div>
 
       <div form-block="deck">
         <label>What's the deck about?</label>
-        <input type="text" name="deck_topic" />
+        <input type="text" name="deck_topic" class="d-field" />
       </div>
 
       <div form-block="brief">
         <label>What's the brief about?</label>
-        <input type="text" name="brief_topic" />
+        <input type="text" name="brief_topic" class="d-field" />
       </div>
 
       <div form-block="offsite">
         <label>How many people?</label>
-        <input type="text" name="offsite_headcount" />
+        <input type="text" name="offsite_headcount" class="d-field" />
       </div>
 
       <div form-block="info">
         <label>Your email</label>
-        <input type="email" name="email" />
+        <input type="email" name="email" class="d-field" />
       </div>
 
       <div form-block="submit">

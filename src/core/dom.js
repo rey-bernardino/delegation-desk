@@ -7,6 +7,7 @@ export const SELECTORS = {
   block: (name) => `[block="${name}"]`,
   formBlock: (name) => `[form-block="${name}"]`,
   select: "[select]",
+  cmd: "[cmd]",
 };
 
 export function createDom() {
@@ -38,6 +39,7 @@ export function createDom() {
     getSelectTriggers() {
       return Array.from(document.querySelectorAll(SELECTORS.select));
     },
+
 
     getBlockName(element) {
       return element?.getAttribute("block") || null;

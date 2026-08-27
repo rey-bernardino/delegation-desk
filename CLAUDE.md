@@ -47,7 +47,8 @@ debugging.
 - `src/config/quiz.config.js` — **all** configuration. Prefer adding config here over hardcoding.
 - `src/core/` — `state` (single mutable object), `dom` (selector helpers), `events` (all delegated
   handlers).
-- `src/features/` — `selection.controller` (intro → variant transition).
+- `src/features/` — `selection.controller` (intro ↔ variant transitions), `fields.service`
+  (clearing `.d-field` inputs).
 - `src/ui/` — `animations` (CSS transitions).
 
 `animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
@@ -62,7 +63,9 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | `[block="name"]` | A section of the page. Referenced by name from config. |
 | `[form-block="name"]` | A section *inside* `[block=form-blocks]`. One per variant, plus `info` and `submit`. |
 | `[select="travel"]` | Click target that starts the quiz for that variant. Value must be in `config.variants` or the click is ignored with a console warning. |
-| `[block-display="grid"]` | Display value to restore when revealing a block Webflow ships as `display: none`. Per-block override; defaults to `config.blockDisplay`, which is `flex` — the blocks use flex formatting. |
+| `[cmd="back"]` | Returns to the intro blocks. |
+| `[block-display="grid"]` | Per-element display override, highest precedence. See **Restoring display** below. |
+| `.d-field` (`config.fieldSelector`) | An input the quiz owns. Cleared when the user switches to a different category. |
 
 Variants are `travel`, `gift`, `deck`, `brief`, `offsite`. Per-variant block names are templated in
 config with `{variant}` — `h1-{variant}` resolves to `[block="h1-travel"]`, and `enterFormBlocks`
@@ -84,6 +87,20 @@ fade then sets inline opacity/display, which outranks those stylesheet rules wit
 
 `prefers-reduced-motion: reduce` collapses all durations to 0.
 
+### Restoring display
+
+Fading a block out sets `display: none`, so fading it back in has to pick a display value. Guessing
+`flex` for everything is wrong — `quiz-nav` is a grid and `intro-logo` is a plain block. Resolution
+order in `animations.displayFor`:
+
+1. `[block-display]` on the element — an explicit override authored in Webflow.
+2. `data-dd-display` — what the element actually computed to before we hid it. Written by
+   `fadeOutElement`/`hideNow` while the element is still visible, so anything the quiz has hidden
+   comes back exactly as Webflow styled it.
+3. `config.blockDisplays[name]` — for a block that has never been visible, so nothing was recorded.
+   This is why `quiz-nav: "grid"` lives in config: it is revealed for the first time, not restored.
+4. `config.blockDisplay` — the `flex` default.
+
 ### Selection transition
 
 A click on `[select]` is handled by a delegated listener in `core/events.js` and runs
@@ -101,10 +118,27 @@ Two details that are easy to break:
 - The exit delay is only applied when something is actually visible to exit, so re-selecting a
   variant brings the new blocks straight in instead of pausing on a blank screen.
 
+`[cmd=back]` runs `selection.back()`, the mirror image: the variant's blocks fade out, the intro
+fades back in.
+
+### Retaining vs clearing answers
+
+`state.selectedVariant` is deliberately **not** cleared by `back()` — it records the last category
+picked, while `state.showingQuiz` records which screen is up. That split is what makes the rule
+work:
+
+- Back, then the **same** category → answers are retained.
+- Back, then a **different** category → `fields.clearAll()` wipes every `.d-field`.
+
+`clearAll` dispatches `input` and `change` on each field. A silent value wipe would leave stale
+"filled" styling and, later, stale validation state behind.
+
 ## Milestones
 
 - **1 (done)** — fade in `[block=intro-logo]` and `[block=select]` on page load.
 - **2 (done)** — `[select=variant]` click fades the intro out and the variant's blocks in.
+- **3 (done)** — `[cmd=back]` returns to the intro; switching category clears `.d-field` inputs,
+  re-picking the same one retains them; `quiz-nav` restores as a grid.
 - Later — validation (port tactics from `rey-bernardino/athena-form`, branch `callflowmerge`),
   dual Webflow + HubSpot submit.
 

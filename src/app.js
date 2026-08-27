@@ -6,6 +6,7 @@ import { QUIZ_CONFIG } from "./config/quiz.config.js";
 import { state } from "./core/state.js";
 import { createDom, SELECTORS } from "./core/dom.js";
 import { createAnimations } from "./ui/animations.js";
+import { createFieldsService } from "./features/fields.service.js";
 import { createSelectionController } from "./features/selection.controller.js";
 import { bindEvents } from "./core/events.js";
 
@@ -15,11 +16,16 @@ const animations = createAnimations({
   config: QUIZ_CONFIG,
 });
 
+const fields = createFieldsService({
+  config: QUIZ_CONFIG,
+});
+
 const selection = createSelectionController({
   config: QUIZ_CONFIG,
   dom,
   state,
   animations,
+  fields,
 });
 
 // Runs at module evaluation, not on DOMContentLoaded — blocks have to be hidden
@@ -52,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state,
     dom,
     animations,
+    fields,
     selection,
     start,
   };

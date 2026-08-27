@@ -5,8 +5,17 @@ export const QUIZ_CONFIG = {
   animationTime: 600,
 
   // Display value used when revealing a block Webflow ships as display: none.
-  // Blocks use flex formatting; override per block with [block-display].
+  // Most blocks use flex formatting.
   blockDisplay: "flex",
+
+  // Blocks whose formatting isn't flex. Keyed by [block] / [form-block] value.
+  // A [block-display] attribute in Webflow still wins over this.
+  blockDisplays: {
+    "quiz-nav": "grid",
+  },
+
+  // Inputs cleared when the user switches to a different category.
+  fieldSelector: ".d-field",
 
   // Every quiz variant. A [select] trigger whose value is not in this list is
   // ignored, so a stray attribute in Webflow can't half-start the quiz.

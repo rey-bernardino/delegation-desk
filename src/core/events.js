@@ -7,21 +7,33 @@ import { SELECTORS } from "./dom.js";
 
 export function bindEvents({ selection }) {
   document.addEventListener("click", (event) => {
-    const trigger = event.target?.closest?.(SELECTORS.select);
+    const target = event.target;
 
-    if (!trigger) {
+    const selectTrigger = target?.closest?.(SELECTORS.select);
+
+    if (selectTrigger) {
+      const variant = selectTrigger.getAttribute("select");
+
+      if (variant) {
+        // The trigger is often an <a> in Webflow — don't let it navigate.
+        event.preventDefault();
+        selection.select(variant);
+      }
+
       return;
     }
 
-    const variant = trigger.getAttribute("select");
+    const cmdTrigger = target?.closest?.(SELECTORS.cmd);
 
-    if (!variant) {
+    if (!cmdTrigger) {
       return;
     }
 
-    // The trigger is often an <a> in Webflow — don't let it navigate.
-    event.preventDefault();
+    const cmd = cmdTrigger.getAttribute("cmd");
 
-    selection.select(variant);
+    if (cmd === "back") {
+      event.preventDefault();
+      selection.back();
+    }
   });
 }

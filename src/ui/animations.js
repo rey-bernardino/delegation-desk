@@ -10,6 +10,16 @@
 const ARM_FADE_STYLE_ID = "dd-arm-fade";
 const ARM_HIDDEN_STYLE_ID = "dd-arm-hidden";
 
+// Where an element's real display value is stashed before it is hidden, so it
+// comes back as what Webflow styled it as rather than a guess.
+const DISPLAY_ATTR = "data-dd-display";
+
+function blockNameOf(element) {
+  return (
+    element.getAttribute("block") || element.getAttribute("form-block") || null
+  );
+}
+
 function toArray(value) {
   if (!value) {
     return [];
@@ -46,9 +56,38 @@ export function createAnimations({ config }) {
     return prefersReducedMotion() ? 0 : animationTime;
   }
 
+  // Precedence: an explicit [block-display] in Webflow, then whatever the
+  // element actually was before we hid it, then a config override by name,
+  // then the flex default.
+  function displayFor(element) {
+    const name = blockNameOf(element);
+
+    return (
+      element.getAttribute("block-display") ||
+      element.getAttribute(DISPLAY_ATTR) ||
+      (name && config.blockDisplays?.[name]) ||
+      config.blockDisplay ||
+      "flex"
+    );
+  }
+
+  // Only meaningful while the element is still visible.
+  function rememberDisplay(element) {
+    if (element.getAttribute(DISPLAY_ATTR)) {
+      return;
+    }
+
+    const display = window.getComputedStyle(element).display;
+
+    if (display && display !== "none") {
+      element.setAttribute(DISPLAY_ATTR, display);
+    }
+  }
+
   return {
     animationTime,
     duration,
+    displayFor,
 
     // Both arm* methods hide via an injected stylesheet, before first paint if
     // the bundle is in the page head. Deliberately CSS and not inline style:
@@ -96,6 +135,8 @@ export function createAnimations({ config }) {
     // variants, where the outgoing one should just be gone.
     hideNow(elements) {
       toArray(elements).forEach((element) => {
+        rememberDisplay(element);
+
         element.style.transition = "";
         element.style.opacity = "0";
         element.style.display = "none";
@@ -116,12 +157,8 @@ export function createAnimations({ config }) {
       // while the outgoing blocks are still fading, jumping the page.
       const reveal = () => {
         // A block Webflow ships as display:none can't fade — reveal it first.
-        // Per-block [block-display] wins, then config.blockDisplay (flex).
         if (!this.isVisible(element)) {
-          element.style.display =
-            element.getAttribute("block-display") ||
-            config.blockDisplay ||
-            "flex";
+          element.style.display = displayFor(element);
         }
 
         // Reset with transitions off, or a block that is already visible fades
@@ -164,6 +201,10 @@ export function createAnimations({ config }) {
       if (!this.isVisible(element)) {
         return element;
       }
+
+      // Capture what it is now, while it is still visible, so [cmd=back] can
+      // bring it back as a grid or a block rather than the flex default.
+      rememberDisplay(element);
 
       element.style.willChange = "opacity";
       element.style.transition = `opacity ${time}ms ease`;

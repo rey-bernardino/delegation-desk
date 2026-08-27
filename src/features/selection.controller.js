@@ -6,7 +6,13 @@ function resolve(name, variant) {
   return name.replace("{variant}", variant);
 }
 
-export function createSelectionController({ config, dom, state, animations }) {
+export function createSelectionController({
+  config,
+  dom,
+  state,
+  animations,
+  fields,
+}) {
   const selection = config.selection || {};
   const variants = config.variants || [];
 
@@ -61,23 +67,34 @@ export function createSelectionController({ config, dom, state, animations }) {
         return false;
       }
 
-      if (state.selectedVariant === variant) {
+      // Already on this variant's screen — nothing to transition.
+      if (state.showingQuiz && state.selectedVariant === variant) {
         return false;
       }
 
       const previous = state.selectedVariant;
+      const isDifferentCategory = previous !== null && previous !== variant;
+
+      // Answers belong to a category. Coming back to the same one keeps them;
+      // switching categories starts clean.
+      if (isDifferentCategory) {
+        fields.clearAll();
+      }
 
       // Switching variants: drop the old one's blocks instantly rather than
       // cross-fading two headings over each other.
-      if (previous) {
+      if (isDifferentCategory) {
+        const entering = enterElementsFor(variant);
+
         animations.hideNow(
           enterElementsFor(previous).filter(
-            (element) => !enterElementsFor(variant).includes(element)
+            (element) => !entering.includes(element)
           )
         );
       }
 
       state.selectedVariant = variant;
+      state.showingQuiz = true;
 
       const exiting = dom
         .getBlocks(selection.exitBlocks)
@@ -94,6 +111,35 @@ export function createSelectionController({ config, dom, state, animations }) {
       animations.fadeIn(enterElementsFor(variant), {
         initialDelay,
         stagger: selection.stagger,
+      });
+
+      return true;
+    },
+
+    // [cmd=back] — reverse of select(). selectedVariant is deliberately kept,
+    // so picking the same category again retains what was typed.
+    back() {
+      if (!state.showingQuiz) {
+        return false;
+      }
+
+      const variant = state.selectedVariant;
+
+      state.showingQuiz = false;
+
+      const exiting = enterElementsFor(variant).filter((element) =>
+        animations.isVisible(element)
+      );
+
+      animations.fadeOut(exiting);
+
+      const initialDelay = exiting.length
+        ? animations.duration() + (selection.gap || 0)
+        : 0;
+
+      animations.fadeIn(dom.getBlocks(selection.exitBlocks), {
+        initialDelay,
+        stagger: config.intro?.stagger,
       });
 
       return true;
