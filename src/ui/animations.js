@@ -143,7 +143,42 @@ export function createAnimations({ config }) {
       });
     },
 
+    // Takes the element's layout space at opacity 0, ready to be raised.
     // Inline opacity outranks the armFade rule, so no !important juggling.
+    prepareElement(element) {
+      if (!element) {
+        return null;
+      }
+
+      // A block Webflow ships as display:none can't fade — reveal it first.
+      if (!this.isVisible(element)) {
+        element.style.display = displayFor(element);
+      }
+
+      // Reset with transitions off, or a block that is already visible fades
+      // out to 0 before fading back in.
+      element.style.transition = "none";
+      element.style.opacity = "0";
+      element.style.willChange = "opacity";
+
+      return element;
+    },
+
+    raiseElement(element, time) {
+      if (!element) {
+        return null;
+      }
+
+      // Force a reflow so the transition runs from the prepared 0 instead of
+      // snapping straight to 1.
+      void element.offsetHeight;
+
+      element.style.transition = `opacity ${time ?? duration()}ms ease`;
+      element.style.opacity = "1";
+
+      return element;
+    },
+
     fadeInElement(element, options = {}) {
       if (!element) {
         return null;
@@ -152,27 +187,9 @@ export function createAnimations({ config }) {
       const delay = options.delay || 0;
       const time = duration();
 
-      // Everything happens at the element's turn, not up front. Revealing a
-      // staggered block early would have it claim layout space at opacity 0
-      // while the outgoing blocks are still fading, jumping the page.
       const reveal = () => {
-        // A block Webflow ships as display:none can't fade — reveal it first.
-        if (!this.isVisible(element)) {
-          element.style.display = displayFor(element);
-        }
-
-        // Reset with transitions off, or a block that is already visible fades
-        // out to 0 before fading back in.
-        element.style.transition = "none";
-        element.style.opacity = "0";
-        element.style.willChange = "opacity";
-
-        // Commit the reset before transitioning off it. Nothing paints between
-        // this and the line below, so opacity 0 is never shown.
-        void element.offsetHeight;
-
-        element.style.transition = `opacity ${time}ms ease`;
-        element.style.opacity = "1";
+        this.prepareElement(element);
+        this.raiseElement(element, time);
       };
 
       if (delay > 0) {
@@ -224,13 +241,55 @@ export function createAnimations({ config }) {
       return element;
     },
 
+    // Reserve first, then stagger opacity only.
+    //
+    // Revealing each element at its own turn shoves the ones already on screen
+    // around: a block that appears above a visible one pushes it down mid-fade.
+    // Taking the whole set's layout space in a single step at the start of the
+    // entrance means nothing moves once the cascade is running.
+    //
+    // The reserve is deferred to initialDelay rather than done up front, so the
+    // incoming blocks don't claim space while the outgoing ones are still
+    // fading out.
     fadeIn(elements, options = {}) {
       const stagger = options.stagger || 0;
       const initialDelay = options.initialDelay || 0;
+      const list = toArray(elements);
+      const time = duration();
 
-      return toArray(elements).map((element, index) =>
-        this.fadeInElement(element, { delay: initialDelay + index * stagger })
-      );
+      if (!list.length) {
+        return list;
+      }
+
+      const run = () => {
+        list.forEach((element) => this.prepareElement(element));
+
+        // Commit the whole reveal before any transition starts.
+        void document.body.offsetHeight;
+
+        list.forEach((element, index) => {
+          const offset = index * stagger;
+
+          if (offset > 0) {
+            window.setTimeout(() => this.raiseElement(element, time), offset);
+          } else {
+            this.raiseElement(element, time);
+          }
+
+          window.setTimeout(() => {
+            element.style.willChange = "";
+            element.style.transition = "";
+          }, offset + time + 50);
+        });
+      };
+
+      if (initialDelay > 0) {
+        window.setTimeout(run, initialDelay);
+      } else {
+        run();
+      }
+
+      return list;
     },
 
     fadeOut(elements, options = {}) {

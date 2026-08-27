@@ -110,13 +110,21 @@ A click on `[select]` is handled by a delegated listener in `core/events.js` and
 2. After `animationTime + selection.gap`, the entering elements fade in on a `selection.stagger`
    sequence: `enterBlocks` first, then `enterFormBlocks`.
 
-Two details that are easy to break:
+Three details that are easy to break:
 
-- `fadeInElement` does the `display` reveal **inside** the delayed callback, not up front. Revealing
-  a staggered block early makes it claim layout space at opacity 0 while the intro is still fading,
-  which jumps the page.
+- **`fadeIn` reserves layout for the whole set in one step, then staggers opacity only.** Revealing
+  each element at its own turn shoves the ones already on screen around — in Webflow
+  `[form-block=info]` sits *above* the variant blocks, so revealing it third pushed the visible
+  variant block down 408px mid-fade. Never move the `prepareElement` calls into the per-element
+  timers.
+- The reserve is deferred to `initialDelay` rather than done up front, so incoming blocks don't
+  claim space while the outgoing ones are still fading out. Both halves matter: reserve too early
+  and the page grows during the exit; reserve too late (per element) and the cascade shifts.
 - The exit delay is only applied when something is actually visible to exit, so re-selecting a
   variant brings the new blocks straight in instead of pausing on a blank screen.
+
+`enterElementsFor` sorts by document position, not config order, so the cascade reads top-to-bottom.
+Config order still decides *which* blocks appear.
 
 `[cmd=back]` runs `selection.back()`, the mirror image: the variant's blocks fade out, the intro
 fades back in.
@@ -139,6 +147,7 @@ work:
 - **2 (done)** — `[select=variant]` click fades the intro out and the variant's blocks in.
 - **3 (done)** — `[cmd=back]` returns to the intro; switching category clears `.d-field` inputs,
   re-picking the same one retains them; `quiz-nav` restores as a grid.
+- **4 (done)** — killed the layout jump when entering a category.
 - Later — validation (port tactics from `rey-bernardino/athena-form`, branch `callflowmerge`),
   dual Webflow + HubSpot submit.
 

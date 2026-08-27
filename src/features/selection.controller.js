@@ -26,12 +26,19 @@ export function createSelectionController({
     );
   }
 
-  // Order matters — this is the stagger sequence.
+  // The stagger sequence, sorted top-to-bottom by document position rather
+  // than config order. In Webflow [form-block=info] sits above the variant
+  // blocks, so fading in config order cascades bottom, top, bottom — which
+  // reads as arbitrary even now that it no longer shifts the layout.
   function enterElementsFor(variant) {
-    return [
+    const elements = [
       ...dom.getBlocks(blockNamesFor(variant)),
       ...dom.getFormBlocks(formBlockNamesFor(variant)),
     ];
+
+    return elements.sort((a, b) =>
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    );
   }
 
   // Every post-selection target across every variant, as selector strings.
