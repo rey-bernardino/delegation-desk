@@ -55,7 +55,7 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | Attribute | Meaning |
 | --- | --- |
 | `[block="name"]` | A section of the page. Referenced by name from config. |
-| `[block-display="flex"]` | Display value to restore when revealing a block Webflow ships as `display: none`. Defaults to `block`. |
+| `[block-display="grid"]` | Display value to restore when revealing a block Webflow ships as `display: none`. Per-block override; defaults to `config.blockDisplay`, which is `flex` — the blocks use flex formatting. |
 
 Because markup is external, **selectors are the API**. Changing one silently breaks the live page
 with no build error. Grep before renaming, and flag any selector change in the summary.

@@ -38,12 +38,22 @@
         font-weight: 600;
       }
 
+      /* Mirrors Webflow: hidden by default, flex formatting once revealed. */
+      [block="select"] {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+
       .option {
         padding: 14px 18px;
-        margin-top: 12px;
         border: 1px solid #303034;
         border-radius: 8px;
         cursor: pointer;
+      }
+
+      [block="select"] p {
+        margin: 0;
       }
     </style>
   </head>

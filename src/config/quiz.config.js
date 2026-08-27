@@ -4,6 +4,10 @@ export const QUIZ_CONFIG = {
   // Base duration for block transitions, in ms.
   animationTime: 600,
 
+  // Display value used when revealing a block Webflow ships as display: none.
+  // Blocks use flex formatting; override per block with [block-display].
+  blockDisplay: "flex",
+
   intro: {
     // Blocks faded in on page load, in order.
     blocks: ["intro-logo", "select"],

@@ -53,10 +53,12 @@ export function createAnimations({ config, dom }) {
       const time = duration();
 
       // A block Webflow ships as display:none can't fade — reveal it first.
-      // Intended display comes from [block-display], defaulting to block.
+      // Per-block [block-display] wins, then config.blockDisplay (flex).
       if (window.getComputedStyle(element).display === "none") {
         element.style.display =
-          element.getAttribute("block-display") || "block";
+          element.getAttribute("block-display") ||
+          config.blockDisplay ||
+          "flex";
       }
 
       // Reset with transitions off, or a block that is already visible fades
