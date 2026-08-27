@@ -45,8 +45,13 @@ wires dependencies explicitly, then exposes everything on `window.DelegationDesk
 debugging.
 
 - `src/config/quiz.config.js` — **all** configuration. Prefer adding config here over hardcoding.
-- `src/core/` — `dom` (selector helpers).
+- `src/core/` — `state` (single mutable object), `dom` (selector helpers), `events` (all delegated
+  handlers).
+- `src/features/` — `selection.controller` (intro → variant transition).
 - `src/ui/` — `animations` (CSS transitions).
+
+`animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
+because blocks are addressed by more than one attribute (`[block]` and `[form-block]`).
 
 ### The DOM is the state machine
 
@@ -55,29 +60,53 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | Attribute | Meaning |
 | --- | --- |
 | `[block="name"]` | A section of the page. Referenced by name from config. |
+| `[form-block="name"]` | A section *inside* `[block=form-blocks]`. One per variant, plus `info` and `submit`. |
+| `[select="travel"]` | Click target that starts the quiz for that variant. Value must be in `config.variants` or the click is ignored with a console warning. |
 | `[block-display="grid"]` | Display value to restore when revealing a block Webflow ships as `display: none`. Per-block override; defaults to `config.blockDisplay`, which is `flex` — the blocks use flex formatting. |
+
+Variants are `travel`, `gift`, `deck`, `brief`, `offsite`. Per-variant block names are templated in
+config with `{variant}` — `h1-{variant}` resolves to `[block="h1-travel"]`, and `enterFormBlocks`
+`{variant}` resolves to `[form-block="travel"]`.
 
 Because markup is external, **selectors are the API**. Changing one silently breaks the live page
 with no build error. Grep before renaming, and flag any selector change in the summary.
 
 ### Load sequence
 
-`animations.armBlocks()` runs at module evaluation, *not* on `DOMContentLoaded` — the intro blocks
-must be hidden before first paint or they flash at full opacity and then fade in from nothing. It
-hides them with an injected `<style>` rather than inline styles on purpose: if the bundle fails to
-load, nothing is hidden and the page degrades to fully visible instead of permanently blank.
+Both `arm*` methods run at module evaluation, *not* on `DOMContentLoaded` — blocks must be hidden
+before first paint, or the intro flashes at full opacity and all five variant headings show at once
+before the quiz starts. `armFade` sets `opacity: 0` (block keeps its layout space); `armHidden` sets
+`display: none` (block is out of the flow entirely, used for every post-selection target).
 
-`fadeInBlock` then sets inline opacity, which outranks that stylesheet rule without `!important`.
-It resets with `transition: none` first, so re-running a fade on an already-visible block does not
-dip to 0 and back.
+Both hide with an injected `<style>` rather than inline styles on purpose: if the bundle fails to
+load, nothing is hidden and the page degrades to fully visible instead of permanently blank. The
+fade then sets inline opacity/display, which outranks those stylesheet rules without `!important`.
 
 `prefers-reduced-motion: reduce` collapses all durations to 0.
+
+### Selection transition
+
+A click on `[select]` is handled by a delegated listener in `core/events.js` and runs
+`selection.select(variant)`:
+
+1. Intro blocks (`selection.exitBlocks`) fade out and are pulled from the flow.
+2. After `animationTime + selection.gap`, the entering elements fade in on a `selection.stagger`
+   sequence: `enterBlocks` first, then `enterFormBlocks`.
+
+Two details that are easy to break:
+
+- `fadeInElement` does the `display` reveal **inside** the delayed callback, not up front. Revealing
+  a staggered block early makes it claim layout space at opacity 0 while the intro is still fading,
+  which jumps the page.
+- The exit delay is only applied when something is actually visible to exit, so re-selecting a
+  variant brings the new blocks straight in instead of pausing on a blank screen.
 
 ## Milestones
 
 - **1 (done)** — fade in `[block=intro-logo]` and `[block=select]` on page load.
-- Later — selection handling, validation (port tactics from `rey-bernardino/athena-form`, branch
-  `callflowmerge`), dual Webflow + HubSpot submit.
+- **2 (done)** — `[select=variant]` click fades the intro out and the variant's blocks in.
+- Later — validation (port tactics from `rey-bernardino/athena-form`, branch `callflowmerge`),
+  dual Webflow + HubSpot submit.
 
 ## Conventions
 

@@ -45,6 +45,35 @@
         gap: 12px;
       }
 
+      [block="quiz-nav"] {
+        display: none;
+        justify-content: space-between;
+        padding: 16px 32px;
+        font-size: 14px;
+        color: #a1a1aa;
+      }
+
+      [block^="h1-"] {
+        display: none;
+        font-size: 24px;
+        font-weight: 600;
+      }
+
+      [block="form-blocks"] {
+        display: none;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      [form-block] {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        padding: 20px;
+        border: 1px dashed #3f3f46;
+        border-radius: 8px;
+      }
+
       .option {
         padding: 14px 18px;
         border: 1px solid #303034;
@@ -52,8 +81,25 @@
         cursor: pointer;
       }
 
+      .option:hover {
+        border-color: #71717a;
+      }
+
       [block="select"] p {
         margin: 0;
+      }
+
+      label {
+        font-size: 13px;
+        color: #a1a1aa;
+      }
+
+      input {
+        padding: 10px;
+        border: 1px solid #303034;
+        border-radius: 6px;
+        background: #0f0f10;
+        color: #f4f4f5;
       }
     </style>
   </head>
@@ -62,14 +108,60 @@
     <div block="intro-logo">Delegation Desk</div>
 
     <div block="select">
-      <p>Which best describes you?</p>
-      <div class="option">Founder</div>
-      <div class="option">Executive</div>
-      <div class="option">Team lead</div>
+      <p>What do you need handled?</p>
+      <div class="option" select="travel">Travel</div>
+      <div class="option" select="gift">Gift</div>
+      <div class="option" select="deck">Deck</div>
+      <div class="option" select="brief">Brief</div>
+      <div class="option" select="offsite">Offsite</div>
+      <div class="option" select="bogus">Bogus (unknown variant — ignored)</div>
     </div>
 
-    <div block="questions">
-      Not part of milestone 1 — should stay untouched, no fade applied.
+    <div block="quiz-nav">
+      <span>&larr; Back</span>
+      <span>Delegation Desk</span>
+    </div>
+
+    <div block="h1-travel">Let's plan your travel.</div>
+    <div block="h1-gift">Let's find the right gift.</div>
+    <div block="h1-deck">Let's build your deck.</div>
+    <div block="h1-brief">Let's write your brief.</div>
+    <div block="h1-offsite">Let's organise your offsite.</div>
+
+    <div block="form-blocks">
+      <div form-block="travel">
+        <label>Where to?</label>
+        <input type="text" name="travel_destination" />
+      </div>
+
+      <div form-block="gift">
+        <label>Who is it for?</label>
+        <input type="text" name="gift_recipient" />
+      </div>
+
+      <div form-block="deck">
+        <label>What's the deck about?</label>
+        <input type="text" name="deck_topic" />
+      </div>
+
+      <div form-block="brief">
+        <label>What's the brief about?</label>
+        <input type="text" name="brief_topic" />
+      </div>
+
+      <div form-block="offsite">
+        <label>How many people?</label>
+        <input type="text" name="offsite_headcount" />
+      </div>
+
+      <div form-block="info">
+        <label>Your email</label>
+        <input type="email" name="email" />
+      </div>
+
+      <div form-block="submit">
+        <div class="option">Submit</div>
+      </div>
     </div>
   </body>
 </html>

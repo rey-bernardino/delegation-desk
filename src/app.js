@@ -3,25 +3,40 @@
 window.__DELEGATION_DESK__ = true;
 
 import { QUIZ_CONFIG } from "./config/quiz.config.js";
-import { createDom } from "./core/dom.js";
+import { state } from "./core/state.js";
+import { createDom, SELECTORS } from "./core/dom.js";
 import { createAnimations } from "./ui/animations.js";
+import { createSelectionController } from "./features/selection.controller.js";
+import { bindEvents } from "./core/events.js";
 
 const dom = createDom();
 
 const animations = createAnimations({
   config: QUIZ_CONFIG,
-  dom,
 });
 
-// Runs at module evaluation, not on DOMContentLoaded — the intro blocks have to
-// be hidden before the browser paints them, or they flash in at full opacity
-// and then fade in from nothing.
-animations.armBlocks(QUIZ_CONFIG.intro.blocks);
+const selection = createSelectionController({
+  config: QUIZ_CONFIG,
+  dom,
+  state,
+  animations,
+});
+
+// Runs at module evaluation, not on DOMContentLoaded — blocks have to be hidden
+// before the browser paints them, or the intro flashes in at full opacity and
+// every variant's heading shows at once before the quiz starts.
+animations.armFade(
+  QUIZ_CONFIG.intro.blocks.map((name) => SELECTORS.block(name))
+);
+
+animations.armHidden(selection.allEnterSelectors());
 
 document.addEventListener("DOMContentLoaded", () => {
   function start() {
     try {
-      animations.fadeInBlocks(QUIZ_CONFIG.intro.blocks, {
+      bindEvents({ selection });
+
+      animations.fadeIn(dom.getBlocks(QUIZ_CONFIG.intro.blocks), {
         stagger: QUIZ_CONFIG.intro.stagger,
         initialDelay: QUIZ_CONFIG.intro.initialDelay,
       });
@@ -34,8 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   window.DelegationDesk = {
     config: QUIZ_CONFIG,
+    state,
     dom,
     animations,
+    selection,
     start,
   };
 
