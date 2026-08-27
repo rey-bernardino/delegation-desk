@@ -8,10 +8,24 @@ export function createFieldsService({ config }) {
       return Array.from(document.querySelectorAll(selector));
     },
 
-    clearAll() {
-      const fields = this.getFields();
+    // Fields inside a preserved block are never cleared. [form-block=info]
+    // (name, email, company) is shown for every category, so its answers stay
+    // true no matter which category the user switches to.
+    isPreserved(field) {
+      const preserved = config.preserveFormBlocks || [];
+      const holder = field.closest("[form-block]");
 
-      fields.forEach((field) => {
+      return preserved.includes(holder?.getAttribute("form-block"));
+    },
+
+    // Returns the fields it actually cleared, so the caller can reset their
+    // validation state too.
+    clearAll() {
+      const cleared = this.getFields().filter(
+        (field) => !this.isPreserved(field)
+      );
+
+      cleared.forEach((field) => {
         const type = (field.type || "").toLowerCase();
 
         if (type === "checkbox" || type === "radio") {
@@ -28,7 +42,7 @@ export function createFieldsService({ config }) {
         field.dispatchEvent(new Event("change", { bubbles: true }));
       });
 
-      return fields.length;
+      return cleared;
     },
   };
 }

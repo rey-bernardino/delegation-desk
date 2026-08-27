@@ -104,7 +104,36 @@
         color: #a1a1aa;
       }
 
-      input {
+      .d-field-container .errorMessage {
+        margin-top: 6px;
+        display: none;
+        color: rgb(245, 82, 82);
+        font-size: 12px;
+      }
+
+      .d-field-container.invalid .errorMessage {
+        display: block;
+      }
+
+      .d-field-container.invalid input,
+      .d-field-container.invalid textarea {
+        border-color: rgb(245, 82, 82);
+      }
+
+      .d-field-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+
+      textarea {
+        min-height: 4em;
+        font-family: inherit;
+      }
+
+      input,
+      textarea {
         padding: 10px;
         border: 1px solid #303034;
         border-radius: 6px;
@@ -139,38 +168,89 @@
     <div block="h1-offsite">Let's organise your offsite.</div>
 
     <div block="form-blocks">
-      <div form-block="info">
-        <label>Your email</label>
-        <input type="email" name="email" class="d-field" />
-      </div>
+      <div class="form-items">
+        <div form-block="info">
+          <div class="d-field-container">
+            <label class="d-field-label">firstname</label>
+            <input type="text" name="firstname" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">lastname</label>
+            <input type="text" name="lastname" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">email</label>
+            <input type="email" name="email" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">company</label>
+            <input type="text" name="company" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
 
-      <div form-block="travel">
-        <label>Where to?</label>
-        <input type="text" name="travel_destination" class="d-field" />
-      </div>
+        <div form-block="travel">
+          <div class="d-field-container">
+            <label class="d-field-label">trip-destination</label>
+            <input type="text" name="trip-destination" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">trip-budget</label>
+            <input type="text" name="trip-budget" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">trip-musthaves</label>
+            <textarea name="trip-musthaves" class="d-field"></textarea>
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
 
-      <div form-block="gift">
-        <label>Who is it for?</label>
-        <input type="text" name="gift_recipient" class="d-field" />
-      </div>
+        <div form-block="gift">
+          <div class="d-field-container">
+            <label class="d-field-label">gift-whoitsfor</label>
+            <input type="text" name="gift-whoitsfor" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+          <div class="d-field-container">
+            <label class="d-field-label">gift-occasion</label>
+            <input type="text" name="gift-occasion" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
 
-      <div form-block="deck">
-        <label>What's the deck about?</label>
-        <input type="text" name="deck_topic" class="d-field" />
-      </div>
+        <div form-block="deck">
+          <div class="d-field-container">
+            <label class="d-field-label">deck-branding</label>
+            <input type="text" name="deck-branding" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
 
-      <div form-block="brief">
-        <label>What's the brief about?</label>
-        <input type="text" name="brief_topic" class="d-field" />
-      </div>
+        <div form-block="brief">
+          <div class="d-field-container">
+            <label class="d-field-label">brief-name</label>
+            <input type="text" name="brief-name" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
 
-      <div form-block="offsite">
-        <label>How many people?</label>
-        <input type="text" name="offsite_headcount" class="d-field" />
+        <div form-block="offsite">
+          <div class="d-field-container">
+            <label class="d-field-label">offsite-howmany</label>
+            <input type="text" name="offsite-howmany" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
+
       </div>
 
       <div form-block="submit">
-        <div class="option">Submit</div>
+        <button class="option" cmd="submit">Submit</button>
       </div>
     </div>
   </body>

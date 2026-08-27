@@ -14,8 +14,19 @@ export const QUIZ_CONFIG = {
     "quiz-nav": "grid",
   },
 
-  // Inputs cleared when the user switches to a different category.
+  // Inputs the quiz owns.
   fieldSelector: ".d-field",
+
+  // Form blocks whose inputs survive a category switch. [form-block=info] is
+  // shown for every category, so its answers are never category-specific.
+  preserveFormBlocks: ["info"],
+
+  validation: {
+    // Wrapper that carries the invalid class. Webflow styles the red border
+    // and reveals .errorMessage off it.
+    fieldWrapper: ".d-field-container",
+    invalidClass: "invalid",
+  },
 
   // Every quiz variant. A [select] trigger whose value is not in this list is
   // ignored, so a stray attribute in Webflow can't half-start the quiz.

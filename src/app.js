@@ -7,6 +7,7 @@ import { state } from "./core/state.js";
 import { createDom, SELECTORS } from "./core/dom.js";
 import { createAnimations } from "./ui/animations.js";
 import { createFieldsService } from "./features/fields.service.js";
+import { createValidationService } from "./features/validation.service.js";
 import { createSelectionController } from "./features/selection.controller.js";
 import { bindEvents } from "./core/events.js";
 
@@ -20,12 +21,19 @@ const fields = createFieldsService({
   config: QUIZ_CONFIG,
 });
 
+const validation = createValidationService({
+  config: QUIZ_CONFIG,
+  dom,
+  state,
+});
+
 const selection = createSelectionController({
   config: QUIZ_CONFIG,
   dom,
   state,
   animations,
   fields,
+  validation,
 });
 
 // Runs at module evaluation, not on DOMContentLoaded — blocks have to be hidden
@@ -40,7 +48,7 @@ animations.armHidden(selection.allEnterSelectors());
 document.addEventListener("DOMContentLoaded", () => {
   function start() {
     try {
-      bindEvents({ selection });
+      bindEvents({ config: QUIZ_CONFIG, selection, validation });
 
       animations.fadeIn(dom.getBlocks(QUIZ_CONFIG.intro.blocks), {
         stagger: QUIZ_CONFIG.intro.stagger,
@@ -59,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dom,
     animations,
     fields,
+    validation,
     selection,
     start,
   };

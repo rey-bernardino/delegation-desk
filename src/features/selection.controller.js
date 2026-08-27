@@ -1,10 +1,7 @@
 // src/features/selection.controller.js
 
 import { SELECTORS } from "../core/dom.js";
-
-function resolve(name, variant) {
-  return name.replace("{variant}", variant);
-}
+import { blockNamesFor, formBlockNamesFor } from "../core/variants.js";
 
 export function createSelectionController({
   config,
@@ -12,19 +9,10 @@ export function createSelectionController({
   state,
   animations,
   fields,
+  validation,
 }) {
   const selection = config.selection || {};
   const variants = config.variants || [];
-
-  function blockNamesFor(variant) {
-    return (selection.enterBlocks || []).map((name) => resolve(name, variant));
-  }
-
-  function formBlockNamesFor(variant) {
-    return (selection.enterFormBlocks || []).map((name) =>
-      resolve(name, variant)
-    );
-  }
 
   // The stagger sequence, sorted top-to-bottom by document position rather
   // than config order. In Webflow [form-block=info] sits above the variant
@@ -32,8 +20,8 @@ export function createSelectionController({
   // reads as arbitrary even now that it no longer shifts the layout.
   function enterElementsFor(variant) {
     const elements = [
-      ...dom.getBlocks(blockNamesFor(variant)),
-      ...dom.getFormBlocks(formBlockNamesFor(variant)),
+      ...dom.getBlocks(blockNamesFor(config, variant)),
+      ...dom.getFormBlocks(formBlockNamesFor(config, variant)),
     ];
 
     return elements.sort((a, b) =>
@@ -48,11 +36,11 @@ export function createSelectionController({
     const selectors = new Set();
 
     variants.forEach((variant) => {
-      blockNamesFor(variant).forEach((name) =>
+      blockNamesFor(config, variant).forEach((name) =>
         selectors.add(SELECTORS.block(name))
       );
 
-      formBlockNamesFor(variant).forEach((name) =>
+      formBlockNamesFor(config, variant).forEach((name) =>
         selectors.add(SELECTORS.formBlock(name))
       );
     });
@@ -85,7 +73,9 @@ export function createSelectionController({
       // Answers belong to a category. Coming back to the same one keeps them;
       // switching categories starts clean.
       if (isDifferentCategory) {
-        fields.clearAll();
+        // Reset the validation state of whatever was wiped, or the new
+        // category inherits red borders from the old one's answers.
+        validation.resetFields(fields.clearAll());
       }
 
       // Switching variants: drop the old one's blocks instantly rather than

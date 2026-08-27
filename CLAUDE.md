@@ -48,7 +48,7 @@ debugging.
 - `src/core/` — `state` (single mutable object), `dom` (selector helpers), `events` (all delegated
   handlers).
 - `src/features/` — `selection.controller` (intro ↔ variant transitions), `fields.service`
-  (clearing `.d-field` inputs).
+  (clearing `.d-field` inputs), `validation.service`.
 - `src/ui/` — `animations` (CSS transitions).
 
 `animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
@@ -65,7 +65,9 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | `[select="travel"]` | Click target that starts the quiz for that variant. Value must be in `config.variants` or the click is ignored with a console warning. |
 | `[cmd="back"]` | Returns to the intro blocks. |
 | `[block-display="grid"]` | Per-element display override, highest precedence. See **Restoring display** below. |
-| `.d-field` (`config.fieldSelector`) | An input the quiz owns. Cleared when the user switches to a different category. |
+| `.d-field` (`config.fieldSelector`) | An input the quiz owns. Cleared on a category switch unless its `[form-block]` is in `config.preserveFormBlocks`. |
+| `.d-field-container` (`config.validation.fieldWrapper`) | Wrapper that carries the `invalid` class. Webflow styles the red border and reveals `.errorMessage` off it. |
+| `data-dd-touched` | Set once the user has left a field. Untouched fields validate but stay unstyled. |
 
 Variants are `travel`, `gift`, `deck`, `brief`, `offsite`. Per-variant block names are templated in
 config with `{variant}` — `h1-{variant}` resolves to `[block="h1-travel"]`, and `enterFormBlocks`
@@ -139,7 +141,37 @@ work:
 - Back, then a **different** category → `fields.clearAll()` wipes every `.d-field`.
 
 `clearAll` dispatches `input` and `change` on each field. A silent value wipe would leave stale
-"filled" styling and, later, stale validation state behind.
+"filled" styling and, later, stale validation state behind. It returns the fields it cleared, and
+the selection controller feeds those to `validation.resetFields` so red borders and touched flags
+don't carry into the new category.
+
+`config.preserveFormBlocks` (`["info"]`) is exempt from all of that: `[form-block=info]` — name,
+email, company — is shown for every category, so its answers are never category-specific and must
+survive a switch.
+
+## Validation
+
+Every field in the **current** category is required. Tactics follow athena-form's
+`validation.service.js`, including its email regex and the consecutive/leading/trailing dot checks.
+
+**Scope is the point.** `getScopedFields()` resolves `config.selection.enterFormBlocks` for
+`state.selectedVariant` and collects `.d-field` inside those blocks only. The other four categories
+sit in the DOM with empty inputs and must never count against the user — never validate by querying
+`.d-field` globally.
+
+Styling only appears once a field carries `data-dd-touched`, set on `focusout`. This is athena-form's
+`solo=""` convention inverted: there, untouched fields carry the attribute; here, touched ones do.
+The effect is the same — a form that has not been filled in yet is never shown as a wall of red.
+
+Triggers, all delegated in `core/events.js`:
+
+- `focusout` on a `.d-field` → mark touched, validate that field.
+- `input` / `change` → re-validate, but only if already touched, so an error clears the moment it is
+  fixed without shouting at a field being typed into for the first time.
+- `[cmd=submit]` → `validateAll({ reveal: true })` marks every scoped field touched so all
+  outstanding errors surface at once, then focuses and scrolls to the first one. The click is only
+  blocked when something is invalid; a valid form is left alone, since submission is a later
+  milestone.
 
 ## Milestones
 
@@ -148,6 +180,8 @@ work:
 - **3 (done)** — `[cmd=back]` returns to the intro; switching category clears `.d-field` inputs,
   re-picking the same one retains them; `quiz-nav` restores as a grid.
 - **4 (done)** — killed the layout jump when entering a category.
+- **5 (done)** — required-field validation scoped to the current category; `[form-block=info]`
+  inputs are never cleared.
 - Later — validation (port tactics from `rey-bernardino/athena-form`, branch `callflowmerge`),
   dual Webflow + HubSpot submit.
 
