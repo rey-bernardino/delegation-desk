@@ -2,7 +2,7 @@
 
 export const QUIZ_CONFIG = {
   // Base duration for block transitions, in ms.
-  animationTime: 600,
+  animationTime: 400,
 
   // Display value used when revealing a block Webflow ships as display: none.
   // Most blocks use flex formatting.
@@ -55,10 +55,10 @@ export const QUIZ_CONFIG = {
     blocks: ["intro-logo", "select"],
 
     // Delay between each block in the sequence, in ms.
-    stagger: 200,
+    stagger: 120,
 
     // Delay before the first block starts, in ms.
-    initialDelay: 100,
+    initialDelay: 80,
   },
 
   selection: {
@@ -73,9 +73,9 @@ export const QUIZ_CONFIG = {
     enterFormBlocks: ["{variant}", "info", "submit"],
 
     // Delay between each entering element, in ms.
-    stagger: 150,
+    stagger: 90,
 
     // Beat between the exit finishing and the entrance starting, in ms.
-    gap: 100,
+    gap: 60,
   },
 };
