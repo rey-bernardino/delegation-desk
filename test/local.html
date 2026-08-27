@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!--
+  Local stand-in for the Webflow page. Not shipped, not built — it exists so the
+  block behaviour can be checked without publishing to jsDelivr first.
+
+  Serve the repo root and open /test/local.html, e.g.
+    python3 -m http.server 4321
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delegation Desk — local harness</title>
+
+    <script type="module" src="../src/app.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 48px;
+        font-family: system-ui, sans-serif;
+        background: #0f0f10;
+        color: #f4f4f5;
+      }
+
+      [block] {
+        max-width: 640px;
+        margin: 0 auto 24px;
+        padding: 32px;
+        border: 1px solid #303034;
+        border-radius: 12px;
+        background: #17171a;
+      }
+
+      [block="intro-logo"] {
+        text-align: center;
+        font-size: 28px;
+        font-weight: 600;
+      }
+
+      .option {
+        padding: 14px 18px;
+        margin-top: 12px;
+        border: 1px solid #303034;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div block="intro-logo">Delegation Desk</div>
+
+    <div block="select">
+      <p>Which best describes you?</p>
+      <div class="option">Founder</div>
+      <div class="option">Executive</div>
+      <div class="option">Team lead</div>
+    </div>
+
+    <div block="questions">
+      Not part of milestone 1 — should stay untouched, no fade applied.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "build": "vite build && node scripts/create-webflow-snippet.mjs"
+  },
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
+}
