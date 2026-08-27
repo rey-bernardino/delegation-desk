@@ -28,6 +28,24 @@ export const QUIZ_CONFIG = {
     invalidClass: "invalid",
   },
 
+  payload: {
+    // Where a field's human-readable label comes from.
+    labelSelector: ".d-field-label",
+
+    // The block whose fields are contact details rather than answers. Sent to
+    // both destinations, and never treated as category answers.
+    infoFormBlock: "info",
+
+    // Key the selected category is written to in both payloads.
+    categoryKey: "category",
+  },
+
+  submission: {
+    // Nothing is posted while this is false — the submit click only builds and
+    // stores the payloads. Flip it when the destination is decided.
+    enabled: false,
+  },
+
   // Every quiz variant. A [select] trigger whose value is not in this list is
   // ignored, so a stray attribute in Webflow can't half-start the quiz.
   variants: ["travel", "gift", "deck", "brief", "offsite"],

@@ -8,6 +8,8 @@ import { createDom, SELECTORS } from "./core/dom.js";
 import { createAnimations } from "./ui/animations.js";
 import { createFieldsService } from "./features/fields.service.js";
 import { createValidationService } from "./features/validation.service.js";
+import { createPayloadService } from "./features/payload.service.js";
+import { createSubmissionController } from "./features/submission.controller.js";
 import { createSelectionController } from "./features/selection.controller.js";
 import { bindEvents } from "./core/events.js";
 
@@ -25,6 +27,19 @@ const validation = createValidationService({
   config: QUIZ_CONFIG,
   dom,
   state,
+});
+
+const payload = createPayloadService({
+  config: QUIZ_CONFIG,
+  dom,
+  state,
+});
+
+const submission = createSubmissionController({
+  config: QUIZ_CONFIG,
+  state,
+  validation,
+  payload,
 });
 
 const selection = createSelectionController({
@@ -48,7 +63,12 @@ animations.armHidden(selection.allEnterSelectors());
 document.addEventListener("DOMContentLoaded", () => {
   function start() {
     try {
-      bindEvents({ config: QUIZ_CONFIG, selection, validation });
+      bindEvents({
+        config: QUIZ_CONFIG,
+        selection,
+        validation,
+        submission,
+      });
 
       animations.fadeIn(dom.getBlocks(QUIZ_CONFIG.intro.blocks), {
         stagger: QUIZ_CONFIG.intro.stagger,
@@ -68,6 +88,8 @@ document.addEventListener("DOMContentLoaded", () => {
     animations,
     fields,
     validation,
+    payload,
+    submission,
     selection,
     start,
   };

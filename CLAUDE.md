@@ -48,7 +48,8 @@ debugging.
 - `src/core/` — `state` (single mutable object), `dom` (selector helpers), `events` (all delegated
   handlers).
 - `src/features/` — `selection.controller` (intro ↔ variant transitions), `fields.service`
-  (clearing `.d-field` inputs), `validation.service`.
+  (clearing `.d-field` inputs), `validation.service`, `payload.service` (builds what gets sent),
+  `submission.controller` (decides what happens on submit).
 - `src/ui/` — `animations` (CSS transitions).
 
 `animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
@@ -173,6 +174,41 @@ Triggers, all delegated in `core/events.js`:
   blocked when something is invalid; a valid form is left alone, since submission is a later
   milestone.
 
+## Submission
+
+**Nothing is posted.** `config.submission.enabled` is `false` pending an internal decision on the
+destination. A submit click validates, builds both payloads, stores them on `state.lastPayloads`,
+logs them, and stops the button's own action. When the decision lands,
+`submission.controller.js` is the only file that needs to change.
+
+`payload.service.js` builds and never sends. Two shapes, because the destinations want different
+things — both read values off the DOM at build time:
+
+**quiz** — destined for a single field, so `buildAll()` also returns `quizJson` (the serialised
+form). Category, the info fields as separate top-level keys, then the category's own answers with
+their labels:
+
+```json
+{
+  "category": "travel",
+  "firstname": "Rey", "lastname": "Bernardino",
+  "email": "rey@athena.com", "company": "Athena",
+  "answers": [
+    { "name": "trip-destination", "label": "Preferred destination, or \"surprise me\"", "value": "Tokyo" }
+  ]
+}
+```
+
+**hubspot** — the info block plus the category, flat. `firstname` / `lastname` / `email` /
+`company` are already HubSpot's own property names; the category key is `config.payload.categoryKey`.
+
+```json
+{ "firstname": "Rey", "lastname": "Bernardino", "email": "rey@athena.com", "company": "Athena", "category": "travel" }
+```
+
+`[form-block=info]` is contact detail, not an answer — it goes to both destinations and is never
+included in `answers`. Labels come from `.d-field-label` inside the field's wrapper.
+
 ## Milestones
 
 - **1 (done)** — fade in `[block=intro-logo]` and `[block=select]` on page load.
@@ -182,8 +218,8 @@ Triggers, all delegated in `core/events.js`:
 - **4 (done)** — killed the layout jump when entering a category.
 - **5 (done)** — required-field validation scoped to the current category; `[form-block=info]`
   inputs are never cleared.
-- Later — validation (port tactics from `rey-bernardino/athena-form`, branch `callflowmerge`),
-  dual Webflow + HubSpot submit.
+- **6 (done)** — submit builds both payloads without sending anything.
+- Next — decide the destination, then post to Webflow + HubSpot.
 
 ## Conventions
 

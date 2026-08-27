@@ -5,7 +5,7 @@
 
 import { SELECTORS } from "./dom.js";
 
-export function bindEvents({ config, selection, validation }) {
+export function bindEvents({ config, selection, validation, submission }) {
   const fieldSelector = config.fieldSelector || ".d-field";
 
   document.addEventListener("click", (event) => {
@@ -40,15 +40,19 @@ export function bindEvents({ config, selection, validation }) {
     }
 
     if (cmd === "submit") {
-      // Reveal every outstanding error at once, and stop the submit only when
-      // something is actually wrong. Submission itself is a later milestone —
-      // a valid form is left to whatever Webflow does today.
-      const result = validation.validateAll({ reveal: true });
+      const result = submission.submit();
 
-      if (!result.isValid) {
+      // Nothing is meant to leave the page while submission is disabled, so
+      // the button's own action is stopped either way.
+      if (!submission.isEnabled() || !result.ok) {
         event.preventDefault();
-        result.firstInvalid?.focus?.();
-        result.firstInvalid?.scrollIntoView?.({
+      }
+
+      if (!result.ok) {
+        const firstInvalid = result.validation?.firstInvalid;
+
+        firstInvalid?.focus?.();
+        firstInvalid?.scrollIntoView?.({
           behavior: "smooth",
           block: "center",
         });

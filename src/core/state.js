@@ -10,4 +10,8 @@ export const state = {
 
   // Whether the quiz blocks are on screen, as opposed to the intro.
   showingQuiz: false,
+
+  // Payloads from the last submit attempt, kept for inspection while the
+  // destination is undecided.
+  lastPayloads: null,
 };
