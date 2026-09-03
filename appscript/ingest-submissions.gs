@@ -612,28 +612,89 @@ function debugFetchSubmissions() {
 
 /* --------------------------------------------------------------- trigger -- */
 
+/**
+ * Feedback for menu actions. Logger.log is invisible to someone working in the
+ * spreadsheet, so say it where they are looking. Wrapped because toast is not
+ * available in every context this file runs in — a scheduled run has no UI.
+ */
+function wfToast_(message, title) {
+  Logger.log(message);
+
+  try {
+    SpreadsheetApp.getActive().toast(message, title || "Delegation Desk", 8);
+  } catch (error) {
+    // No UI available (scheduled run) — the log line above is enough.
+  }
+}
+
+function wfIngestTriggers_() {
+  return ScriptApp.getProjectTriggers().filter(function (trigger) {
+    return trigger.getHandlerFunction() === "ingestWebflowSubmissions";
+  });
+}
+
+function wfDeleteTriggers_() {
+  var triggers = wfIngestTriggers_();
+
+  triggers.forEach(function (trigger) {
+    ScriptApp.deleteTrigger(trigger);
+  });
+
+  return triggers.length;
+}
+
+/**
+ * Starts the recurring sync. Clears any existing one first, so running this
+ * twice leaves one trigger rather than two racing runs.
+ */
 function setupIngestTrigger() {
-  deleteIngestTriggers();
+  var replaced = wfDeleteTriggers_();
 
   ScriptApp.newTrigger("ingestWebflowSubmissions")
     .timeBased()
     .everyMinutes(5)
     .create();
 
-  Logger.log("Trigger installed: ingestWebflowSubmissions every 5 minutes.");
+  wfToast_(
+    replaced
+      ? "Scheduled sync restarted — every 5 minutes."
+      : "Scheduled sync started — every 5 minutes."
+  );
+
+  return true;
 }
 
 function deleteIngestTriggers() {
-  var removed = 0;
+  var removed = wfDeleteTriggers_();
 
-  ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === "ingestWebflowSubmissions") {
-      ScriptApp.deleteTrigger(trigger);
-      removed++;
-    }
-  });
+  wfToast_(
+    removed
+      ? "Scheduled sync stopped."
+      : "Nothing to stop — no scheduled sync was running."
+  );
 
-  Logger.log("Removed %s existing trigger(s).", removed);
+  return removed;
+}
+
+/** Reports whether the sync is scheduled, and when it last ran. */
+function ingestStatus() {
+  var triggers = wfIngestTriggers_();
+  var sheet = wfGetSheet_(SHEET_LOGS);
+  var lastRun = "never";
+
+  if (sheet && sheet.getLastRow() > 1) {
+    var value = sheet.getRange(sheet.getLastRow(), 1).getValue();
+
+    lastRun = value instanceof Date ? value.toLocaleString() : String(value);
+  }
+
+  wfToast_(
+    (triggers.length
+      ? "Scheduled sync is ON (every 5 minutes)."
+      : "Scheduled sync is OFF.") + " Last run: " + lastRun
+  );
+
+  return { scheduled: triggers.length > 0, lastRun: lastRun };
 }
 
 /* ------------------------------------------------------------ manual run -- */
@@ -769,6 +830,10 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Delegation Desk")
     .addItem("Sync now", "syncNow")
+    .addSeparator()
+    .addItem("Start scheduled sync (every 5 min)", "setupIngestTrigger")
+    .addItem("Stop scheduled sync", "deleteIngestTriggers")
+    .addItem("Sync status", "ingestStatus")
     .addSeparator()
     .addItem("Check connection", "debugFetchSubmissions")
     .addSeparator()

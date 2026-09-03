@@ -421,9 +421,13 @@ id rather than by a name that can be edited in the Designer.
 | `debugFetchSubmissions()` | fetches without writing; dumps the raw shape and checks tab names |
 | `resetAllSheets()` | **dry run** — reports what a reset would delete |
 | `resetAllSheetsConfirmed()` | destructive — clears every managed sheet, headers included |
-| `setupIngestTrigger()` / `deleteIngestTriggers()` | the 5-minute schedule |
+| `setupIngestTrigger()` / `deleteIngestTriggers()` | start / stop the 5-minute schedule |
+| `ingestStatus()` | whether the schedule is on, and when it last ran |
 
-`onOpen()` puts Sync now / Check connection / Reset in the spreadsheet's own menu bar.
+`onOpen()` puts the whole set in the spreadsheet's own menu bar — sync, start/stop the schedule,
+status, connection check, and both resets. It is a simple trigger, so it needs no deployment; the
+menu appears on reload. Menu actions report through `wfToast_`, because `Logger.log` is invisible to
+someone working in the sheet.
 
 The reset is split in two on purpose: the easy-to-run name is the one that does nothing. Both live
 only in dev — clearing headers as well as rows matters while the question set is still changing,
