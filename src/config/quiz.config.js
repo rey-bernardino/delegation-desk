@@ -183,8 +183,9 @@ export const QUIZ_CONFIG = {
       // into the spreadsheet. Turning this off stops the Sheets pipeline.
       googleSheets: true,
 
-      // Off for now, by decision. The payload is built and logged regardless.
-      hubspot: false,
+      // On. Because HubSpot gates everything (see send()), a rejection here
+      // stops the Webflow row and the thank-you too.
+      hubspot: true,
     },
 
     // Print both payloads to the console on every submit click.

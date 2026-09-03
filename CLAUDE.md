@@ -259,7 +259,7 @@ missing or misspelled flag means off, so a typo can't quietly start posting some
 
 | flag | what it does | now |
 | --- | --- | --- |
-| `hubspot` | POSTs the Forms v3 body. **Runs first and gates everything else.** | `false` by decision |
+| `hubspot` | POSTs the Forms v3 body. **Runs first and gates everything else.** | `true` |
 | `googleSheets` | submits the hidden Webflow form, which Apps Script reads back into the sheet | `true` |
 
 **HubSpot is the gate.** It goes first, and nothing else happens unless it succeeds — no Webflow
@@ -269,6 +269,12 @@ A failure leaves the user on a working form to retry from.
 
 With the HubSpot destination **off** there is nothing to gate on, so the rest proceeds — that is
 what keeps the switch usable in dev, and the console says the gate is inactive.
+
+**Because the gate is live, a HubSpot misconfiguration now stops the whole flow.** The likeliest
+cause is `hubspot.legalConsent.enabled`: a form with GDPR consent options rejects a payload that
+omits `legalConsentOptions`, and a form without them rejects one that includes it. If submissions
+start failing, check that flag before anything else — the console prints the typed error
+(`hubspot_api_error`, `hubspot_rate_limited`, `hubspot_server_error`) and the full response body.
 
 Two flags stop a submission happening twice, and `refreshButton()` honours **both** — it runs on
 every keystroke, so checking only at the click would let typing a single character re-enable the
