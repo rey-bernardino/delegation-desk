@@ -56,8 +56,8 @@ export const QUIZ_CONFIG = {
 
     // Not known yet — fill these in before flipping submission.enabled.
     // Same shape as athena-form's config.hubspot.
-    portalId: null,
-    formId: null,
+    portalId: "20122740",
+    formId: "287352d4-66f8-494a-9e77-3144bf48822a",
   },
 
   submitButton: {
