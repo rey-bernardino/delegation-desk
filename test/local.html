@@ -170,6 +170,17 @@
     <div block="form-blocks">
       <div class="form-items">
         <div form-block="info">
+          <!-- Hidden inputs, as on the Webflow page: no .d-field class, so
+               validation ignores them. -->
+          <input type="hidden" name="event_allin_delegationdesk_choice" />
+          <input type="hidden" name="event_allin_delegationdesk_summary" />
+          <input type="hidden" name="utm_campaign" value="allinsummit-202609" />
+          <input type="hidden" name="utm_content" value="delegationdesk" />
+          <input type="hidden" name="utm_medium" value="event" />
+          <input type="hidden" name="utm_source" value="sponsoredevent" />
+          <input type="hidden" name="hdyhau_primary" value="Event" />
+          <input type="hidden" name="hdyhau_secondary" value="All-In" />
+          <input type="hidden" name="phone" value="+12015551234" />
           <div class="d-field-container">
             <label class="d-field-label">firstname</label>
             <input type="text" name="firstname" class="d-field" />

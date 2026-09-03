@@ -99,7 +99,15 @@ document.addEventListener("DOMContentLoaded", () => {
     submission,
     selection,
     start,
+
+    buildSubmissionPayload: (variant) =>
+      submission.buildSubmissionPayload(variant),
   };
+
+  // Console helper, deliberately global so it can be called straight from
+  // Chrome devtools without going through window.DelegationDesk.
+  window.buildSubmissionPayload = (variant) =>
+    submission.buildSubmissionPayload(variant);
 
   start();
 });

@@ -10,6 +10,7 @@
 // is captured.
 
 import { formBlockNamesFor } from "../core/variants.js";
+import { getCookie } from "../utils/cookies.js";
 
 export function createPayloadService({ config, dom, state }) {
   const settings = config.payload || {};
@@ -26,6 +27,22 @@ export function createPayloadService({ config, dom, state }) {
     return block ? Array.from(block.querySelectorAll(fieldSelector)) : [];
   }
 
+  // Everything named in the info block, including the hidden inputs Webflow
+  // ships pre-filled (utm_*, hdyhau_*, phone) and the ones this quiz writes.
+  // These are contact/attribution data HubSpot expects, so the API payload
+  // carries them even though the user never sees them.
+  function allNamedFieldsIn(blockName) {
+    const block = dom.getFormBlock(blockName);
+
+    if (!block) {
+      return [];
+    }
+
+    return Array.from(
+      block.querySelectorAll("input[name], select[name], textarea[name]")
+    );
+  }
+
   // Category form blocks are the scoped ones minus info. Blocks with no fields
   // (submit) fall out on their own.
   function categoryBlockNames(variant) {
@@ -35,6 +52,14 @@ export function createPayloadService({ config, dom, state }) {
   }
 
   return {
+    categoryLabelFor(variant = state.selectedVariant) {
+      if (!variant) {
+        return null;
+      }
+
+      return config.variantLabels?.[variant] || variant;
+    },
+
     labelOf(field) {
       const label = field
         .closest(wrapperSelector)
@@ -53,8 +78,15 @@ export function createPayloadService({ config, dom, state }) {
       return String(field.value ?? "").trim();
     },
 
+    // Visible contact fields only — what a human filled in.
     getInfoFields() {
       return fieldsIn(infoBlockName);
+    },
+
+    // Everything HubSpot should receive: the visible contact fields plus the
+    // hidden attribution inputs sitting alongside them.
+    getHubspotFields() {
+      return allNamedFieldsIn(infoBlockName);
     },
 
     getCategoryFields(variant = state.selectedVariant) {
@@ -72,7 +104,10 @@ export function createPayloadService({ config, dom, state }) {
         return null;
       }
 
-      const payload = { [categoryKey]: variant };
+      const payload = {
+        [categoryKey]: variant,
+        categoryLabel: this.categoryLabelFor(variant),
+      };
 
       this.getInfoFields().forEach((field) => {
         payload[field.name] = this.valueOf(field);
@@ -87,8 +122,10 @@ export function createPayloadService({ config, dom, state }) {
       return payload;
     },
 
-    // Info block only, plus which category was picked. firstname / lastname /
-    // email / company are already HubSpot's own property names.
+    // Flat name -> value of every info-block field. The chosen category rides
+    // along in config.hiddenFields.choice rather than as a synthetic key —
+    // HubSpot rejects properties it doesn't know, and that hidden input is the
+    // property it actually has.
     buildHubspotPayload(variant = state.selectedVariant) {
       if (!variant) {
         return null;
@@ -96,25 +133,63 @@ export function createPayloadService({ config, dom, state }) {
 
       const payload = {};
 
-      this.getInfoFields().forEach((field) => {
+      this.getHubspotFields().forEach((field) => {
         payload[field.name] = this.valueOf(field);
       });
 
-      payload[categoryKey] = variant;
+      // Belt and braces: selection fills this on click, but a payload built
+      // straight from the console should still be correct.
+      const choiceField = config.hiddenFields?.choice;
+
+      if (choiceField) {
+        payload[choiceField] = this.categoryLabelFor(variant);
+      }
 
       return payload;
+    },
+
+    // HubSpot Forms v3 submission body, same shape as athena-form's
+    // hubspot.service.js buildSubmissionPayload().
+    buildHubspotApiPayload(variant = state.selectedVariant) {
+      const flat = this.buildHubspotPayload(variant);
+
+      if (!flat) {
+        return null;
+      }
+
+      const context = {
+        pageUri: window.location.href,
+        pageName: document.title,
+      };
+
+      const hutk = getCookie("hubspotutk");
+
+      if (hutk && String(hutk).trim()) {
+        context.hutk = String(hutk).trim();
+      }
+
+      return {
+        submittedAt: Date.now(),
+        fields: Object.entries(flat).map(([name, value]) => ({ name, value })),
+        context,
+      };
     },
 
     buildAll(variant = state.selectedVariant) {
       const quiz = this.buildQuizPayload(variant);
 
       return {
+        category: variant || null,
+        categoryLabel: this.categoryLabelFor(variant),
+
         quiz,
-        hubspot: this.buildHubspotPayload(variant),
 
         // The quiz payload is destined for a single field, so hand over the
         // serialised form too rather than making every caller stringify it.
         quizJson: quiz ? JSON.stringify(quiz) : null,
+
+        hubspot: this.buildHubspotPayload(variant),
+        hubspotApi: this.buildHubspotApiPayload(variant),
       };
     },
   };

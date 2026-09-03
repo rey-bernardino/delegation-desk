@@ -20,12 +20,12 @@ export function createSubmissionController({
   }
 
   function logPayloads(payloads) {
-    const { quiz, hubspot, quizJson } = payloads;
+    const { quiz, hubspot, hubspotApi, quizJson, categoryLabel } = payloads;
     const canGroup = typeof console.group === "function";
 
     if (canGroup) {
       console.group(
-        `Delegation Desk — submit payloads (${quiz?.[categoryKey]}, not sent)`
+        `Delegation Desk — submit payloads (${categoryLabel}, not sent)`
       );
     }
 
@@ -36,7 +36,13 @@ export function createSubmissionController({
       console.table(quiz.answers);
     }
 
-    console.log("hubspot payload:", hubspot);
+    console.log("hubspot payload (flat):", hubspot);
+    console.log("hubspot API body (Forms v3):", hubspotApi);
+
+    if (typeof console.table === "function" && hubspotApi?.fields?.length) {
+      console.table(hubspotApi.fields);
+    }
+
     console.log("quiz payload as JSON (for the single field):", quizJson);
 
     if (canGroup) {
@@ -51,12 +57,98 @@ export function createSubmissionController({
     );
   }
 
+  function getSubmitUrl() {
+    const { submitBaseUrl, portalId, formId } = config.hubspot || {};
+
+    if (!submitBaseUrl || !portalId || !formId) {
+      return null;
+    }
+
+    return `${submitBaseUrl}/${portalId}/${formId}`;
+  }
+
   return {
     isEnabled() {
       return settings.enabled === true;
     },
 
+    getSubmitUrl,
     logPayloads,
+
+    // Callable from the console: window.buildSubmissionPayload()
+    //
+    // Builds every payload from whatever is currently on screen without
+    // validating, submitting, or touching anything. Pass a variant to build
+    // for a category other than the selected one.
+    buildSubmissionPayload(variant) {
+      const payloads = payload.buildAll(variant);
+
+      if (!payloads.quiz) {
+        console.warn(
+          "Delegation Desk: no category selected — pass one, e.g. buildSubmissionPayload(\"travel\")"
+        );
+
+        return payloads;
+      }
+
+      logPayloads(payloads);
+
+      return payloads;
+    },
+
+    // Mirrors athena-form's hubspot.service.js submitForm(). Not called while
+    // submission.enabled is false, and inert until portalId/formId are set.
+    async postToHubspot(apiPayload) {
+      const url = getSubmitUrl();
+
+      if (!url) {
+        throw new Error(
+          "Delegation Desk: config.hubspot.portalId / formId are not set"
+        );
+      }
+
+      let response;
+
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(apiPayload),
+        });
+      } catch (networkError) {
+        const error = new Error("Network error while submitting to HubSpot");
+        error.type = "hubspot_network_error";
+        error.originalError = networkError;
+        throw error;
+      }
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const error = new Error("HubSpot API rejected the submission");
+
+        error.type =
+          response.status === 429
+            ? "hubspot_rate_limited"
+            : response.status >= 500
+              ? "hubspot_server_error"
+              : "hubspot_api_error";
+
+        error.status = response.status;
+        error.data = data;
+        throw error;
+      }
+
+      return data;
+    },
 
     submit() {
       const result = validation.validateAll({ reveal: true });

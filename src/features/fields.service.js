@@ -8,6 +8,27 @@ export function createFieldsService({ config }) {
       return Array.from(document.querySelectorAll(selector));
     },
 
+    // Writes into a named input the quiz owns but the user never sees.
+    // Dispatched like a real edit, so anything listening picks it up.
+    setValue(name, value) {
+      if (!name) {
+        return null;
+      }
+
+      const field = document.querySelector(`[name="${name}"]`);
+
+      if (!field) {
+        console.warn(`Delegation Desk: no field named "${name}"`);
+        return null;
+      }
+
+      field.value = value ?? "";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+
+      return field;
+    },
+
     // Fields inside a preserved block are never cleared. [form-block=info]
     // (name, email, company) is shown for every category, so its answers stay
     // true no matter which category the user switches to.

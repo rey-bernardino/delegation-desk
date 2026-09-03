@@ -93,6 +93,13 @@ export function createSelectionController({
       state.selectedVariant = variant;
       state.showingQuiz = true;
 
+      // The hidden field carries the human-readable name, not the slug.
+      const choiceField = config.hiddenFields?.choice;
+
+      if (choiceField) {
+        fields.setValue(choiceField, config.variantLabels?.[variant] || variant);
+      }
+
       const exiting = dom
         .getBlocks(selection.exitBlocks)
         .filter((element) => animations.isVisible(element));

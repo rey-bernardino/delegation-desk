@@ -36,8 +36,17 @@ export const QUIZ_CONFIG = {
     // both destinations, and never treated as category answers.
     infoFormBlock: "info",
 
-    // Key the selected category is written to in both payloads.
+    // Key the selected category is written to in the quiz payload.
     categoryKey: "category",
+  },
+
+  hubspot: {
+    submitBaseUrl: "https://api.hsforms.com/submissions/v3/integration/submit",
+
+    // Not known yet — fill these in before flipping submission.enabled.
+    // Same shape as athena-form's config.hubspot.
+    portalId: null,
+    formId: null,
   },
 
   submission: {
@@ -52,6 +61,23 @@ export const QUIZ_CONFIG = {
   // Every quiz variant. A [select] trigger whose value is not in this list is
   // ignored, so a stray attribute in Webflow can't half-start the quiz.
   variants: ["travel", "gift", "deck", "brief", "offsite"],
+
+  // Human-readable name per variant. This — not the slug — is what gets
+  // written into the hidden choice field and reported to HubSpot.
+  variantLabels: {
+    travel: "Weekend Trip Itinerary",
+    gift: "Gift Sourcing Shortlist",
+    deck: "Company Deck Template",
+    brief: "Brief Me on Someone",
+    offsite: "Company Offsite",
+  },
+
+  // Hidden inputs the quiz writes into. They live inside [form-block=info] and
+  // deliberately carry no .d-field class, so validation ignores them.
+  hiddenFields: {
+    // Filled with variantLabels[variant] the moment a category is picked.
+    choice: "event_allin_delegationdesk_choice",
+  },
 
   intro: {
     // Blocks faded in on page load, in order.

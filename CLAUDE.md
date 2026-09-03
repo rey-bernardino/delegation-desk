@@ -73,6 +73,27 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | `.d-field-container` (`config.validation.fieldWrapper`) | Wrapper that carries the `invalid` class. Webflow styles the red border and reveals `.errorMessage` off it. |
 | `data-dd-touched` | Set once the user has left a field. Untouched fields validate but stay unstyled. |
 
+### Hidden fields
+
+`[form-block=info]` also holds hidden inputs Webflow ships pre-filled (`utm_*`, `hdyhau_primary`,
+`hdyhau_secondary`, `phone`) plus two the quiz owns. **They deliberately carry no `.d-field` class**,
+so validation ignores them and `clearAll` never touches them — do not add that class to a hidden
+input or it becomes a required field that can never be filled.
+
+`config.hiddenFields.choice` (`event_allin_delegationdesk_choice`) is written the moment a category
+is picked, with the **display label** from `config.variantLabels`, not the slug:
+
+| variant | label |
+| --- | --- |
+| `travel` | Weekend Trip Itinerary |
+| `gift` | Gift Sourcing Shortlist |
+| `deck` | Company Deck Template |
+| `brief` | Brief Me on Someone |
+| `offsite` | Company Offsite |
+
+`event_allin_delegationdesk_summary` is still **empty** — it is the obvious home for `quizJson`, but
+nothing writes to it yet.
+
 Variants are `travel`, `gift`, `deck`, `brief`, `offsite`. Per-variant block names are templated in
 config with `{variant}` — `h1-{variant}` resolves to `[block="h1-travel"]`, and `enterFormBlocks`
 `{variant}` resolves to `[form-block="travel"]`.
@@ -228,12 +249,38 @@ their labels:
 }
 ```
 
-**hubspot** — the info block plus the category, flat. `firstname` / `lastname` / `email` /
-`company` are already HubSpot's own property names; the category key is `config.payload.categoryKey`.
+**hubspot** — flat `name` → `value` of **every** named input in the info block, hidden ones
+included, so `utm_*`, `hdyhau_*` and `phone` ride along. The chosen category travels as
+`event_allin_delegationdesk_choice`, not as a synthetic `category` key: HubSpot rejects properties
+it doesn't know, and that hidden input is the property the portal actually has.
+
+**hubspotApi** — the Forms v3 submission body, same shape as athena-form's
+`hubspot.service.js buildSubmissionPayload()`:
 
 ```json
-{ "firstname": "Rey", "lastname": "Bernardino", "email": "rey@athena.com", "company": "Athena", "category": "travel" }
+{
+  "submittedAt": 1757000000000,
+  "fields": [{ "name": "email", "value": "rey@athena.com" }],
+  "context": { "pageUri": "...", "pageName": "...", "hutk": "<hubspotutk cookie>" }
+}
 ```
+
+`legalConsentOptions` is **not** included — this quiz has no consent checkbox, so there is no
+consent to assert. Add it if the HubSpot form requires one.
+
+`config.hubspot.portalId` and `formId` are `null` and must be filled before `submission.enabled`
+can be flipped. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
+`submitForm()` error typing, but nothing calls it while submission is disabled.
+
+### Console helper
+
+```js
+buildSubmissionPayload()          // uses the selected category
+buildSubmissionPayload("gift")    // build for another category
+```
+
+Global, defined in `app.js`. Builds and logs every payload from whatever is currently on screen —
+no validation, no submission, no DOM mutation.
 
 `[form-block=info]` is contact detail, not an answer — it goes to both destinations and is never
 included in `answers`. Labels come from `.d-field-label` inside the field's wrapper.
@@ -248,6 +295,8 @@ included in `answers`. Labels come from `.d-field-label` inside the field's wrap
 - **5 (done)** — required-field validation scoped to the current category; `[form-block=info]`
   inputs are never cleared.
 - **6 (done)** — submit builds both payloads without sending anything.
+- **7 (done)** — Lenis scroll limit refreshed on every height change.
+- **8 (done)** — hidden choice field, HubSpot Forms v3 payload shape, `buildSubmissionPayload()`.
 - **7 (done)** — Lenis scroll limit refreshed on every height change.
 - Next — decide the destination, then post to Webflow + HubSpot.
 
