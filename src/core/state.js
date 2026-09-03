@@ -17,4 +17,9 @@ export const state = {
   // True while a submission is in flight. Submitting now waits on a network
   // call, so without this a second click would send everything twice.
   submitting: false,
+
+  // Latched once a submission has succeeded. Stays true for the rest of the
+  // page view: the destinations already have the data, so a second send would
+  // duplicate a CRM record and a sheet row.
+  submitted: false,
 };

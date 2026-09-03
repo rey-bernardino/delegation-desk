@@ -270,9 +270,19 @@ A failure leaves the user on a working form to retry from.
 With the HubSpot destination **off** there is nothing to gate on, so the rest proceeds — that is
 what keeps the switch usable in dev, and the console says the gate is inactive.
 
-`state.submitting` blocks a second submit while one is in flight, and the button greys for the
-duration. Submitting waits on a network call now, so without it a double click would send
-everything twice.
+Two flags stop a submission happening twice, and `refreshButton()` honours **both** — it runs on
+every keystroke, so checking only at the click would let typing a single character re-enable the
+button while the request was still in the air:
+
+- `state.submitting` — true while a send is in flight. Blocks an overlapping submit.
+- `state.submitted` — latched once a send has succeeded, and never unset. Blocks a *later* submit,
+  which the in-flight flag doesn't cover.
+
+The latch is set before the redirect and deliberately survives a suppressed one: if the submission
+succeeded but the redirect was blocked (Webflow reported a failure, or `redirect.enabled` is off),
+the button stays greyed, because the destinations already have the data and sending again would
+duplicate a CRM record and a sheet row. That case logs a warning explaining why the form is still
+on screen.
 
 A submit click validates, builds every payload, stores them on `state.lastPayloads`, logs them, and
 sends to each enabled destination.

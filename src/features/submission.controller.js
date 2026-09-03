@@ -82,6 +82,16 @@ export function createSubmissionController({
     // Keeps the button in step with the current category's validity. Cheap
     // enough to call on every keystroke — it only reads input values.
     refreshButton() {
+      // Validity stops mattering once a submission is under way or done. Both
+      // checks have to live here rather than only at the click, because this
+      // runs on every keystroke — without them, typing one character during a
+      // submission puts the button back to enabled while the request is still
+      // in the air.
+      if (state.submitting || state.submitted) {
+        submitButton?.setEnabled(false);
+        return false;
+      }
+
       const { isValid } = validation.checkAll();
 
       submitButton?.setEnabled(isValid);
@@ -291,6 +301,15 @@ export function createSubmissionController({
         return { ok: false, reason: "in-flight" };
       }
 
+      // And one submission per page view. The in-flight guard only covers
+      // overlapping sends; this covers a second one after the first landed.
+      if (state.submitted) {
+        console.warn(
+          "Delegation Desk: this page has already submitted successfully"
+        );
+        return { ok: false, reason: "already-submitted" };
+      }
+
       // Write the summary JSON into its hidden field before anything is
       // built, so the HubSpot payload picks the filled value up rather than
       // an empty string.
@@ -338,7 +357,20 @@ export function createSubmissionController({
       }
 
       if (sendResult.ok) {
-        this.redirectAfter(sendResult);
+        // Latched before the redirect, and deliberately not unset: the button
+        // stays greyed even if the redirect is suppressed, because the
+        // destinations already have this submission.
+        state.submitted = true;
+
+        const url = this.redirectAfter(sendResult);
+
+        if (!url) {
+          console.warn(
+            "Delegation Desk: submitted successfully but did not redirect — " +
+              "the form stays on screen and the button stays disabled, since " +
+              "sending again would duplicate the record."
+          );
+        }
       } else {
         // Leave a working form behind to retry from.
         this.refreshButton();
