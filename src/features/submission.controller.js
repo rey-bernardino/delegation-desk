@@ -152,14 +152,41 @@ export function createSubmissionController({
       return webflowForm.fillAndSubmit(payloads.summary);
     },
 
-    // Sends to whichever destinations are switched on. HubSpot is awaited
-    // because it reports failure; the Webflow form is not, because it cannot.
+    // HubSpot is the gate. It goes first, and nothing else happens unless it
+    // succeeds — no Webflow row, no redirect. A submission HubSpot rejected
+    // isn't a submission, so logging it to the sheet or thanking the user for
+    // it would both be lies, and the sheet would disagree with the CRM.
+    //
+    // With the HubSpot destination off there is nothing to gate on, so the
+    // rest proceeds — that is what keeps the switch usable in dev.
     //
     // Each destination must be explicitly true. A missing or misspelled flag
     // means "off", so a typo can't quietly start posting somewhere.
     async send(payloads) {
       const destinations = settings.destinations || {};
       const result = { ok: true, submitted: true, payloads, sent: {} };
+
+      if (destinations.hubspot === true) {
+        try {
+          result.sent.hubspot = await this.postToHubspot(payloads.hubspotApi);
+        } catch (error) {
+          result.ok = false;
+          result.error = error;
+
+          console.error(
+            "Delegation Desk: HubSpot rejected the submission — nothing was " +
+              "logged to Webflow, and the user stays on the form.",
+            error
+          );
+
+          return result;
+        }
+      } else if (shouldLog()) {
+        console.log(
+          "Delegation Desk: HubSpot destination is off, so the success gate " +
+            "is inactive and the Webflow log runs unconditionally."
+        );
+      }
 
       if (destinations.googleSheets === true) {
         result.sent.googleSheets = this.submitToWebflow(payloads);
@@ -176,16 +203,6 @@ export function createSubmissionController({
               `Delegation Desk: Webflow form did not confirm (${result.webflow.reason})`
             );
           }
-        }
-      }
-
-      if (destinations.hubspot === true) {
-        try {
-          result.sent.hubspot = await this.postToHubspot(payloads.hubspotApi);
-        } catch (error) {
-          result.ok = false;
-          result.error = error;
-          console.error("Delegation Desk: HubSpot submission failed", error);
         }
       }
 
@@ -267,6 +284,13 @@ export function createSubmissionController({
         return { ok: false, reason: "invalid", validation: result };
       }
 
+      // One submission at a time. Submitting now waits on HubSpot, which
+      // leaves a window where a second click would send everything twice.
+      if (state.submitting) {
+        console.warn("Delegation Desk: a submission is already in flight");
+        return { ok: false, reason: "in-flight" };
+      }
+
       // Write the summary JSON into its hidden field before anything is
       // built, so the HubSpot payload picks the filled value up rather than
       // an empty string.
@@ -299,9 +323,26 @@ export function createSubmissionController({
         return { ok: true, submitted: false, payloads };
       }
 
-      const sendResult = await this.send(payloads);
+      state.submitting = true;
 
-      this.redirectAfter(sendResult);
+      // Greyed while in flight: the button shows something is happening and
+      // can't be clicked again.
+      submitButton?.setEnabled(false);
+
+      let sendResult;
+
+      try {
+        sendResult = await this.send(payloads);
+      } finally {
+        state.submitting = false;
+      }
+
+      if (sendResult.ok) {
+        this.redirectAfter(sendResult);
+      } else {
+        // Leave a working form behind to retry from.
+        this.refreshButton();
+      }
 
       return sendResult;
     },

@@ -11,7 +11,10 @@ export const state = {
   // Whether the quiz blocks are on screen, as opposed to the intro.
   showingQuiz: false,
 
-  // Payloads from the last submit attempt, kept for inspection while the
-  // destination is undecided.
+  // Payloads from the last submit attempt, kept for inspection.
   lastPayloads: null,
+
+  // True while a submission is in flight. Submitting now waits on a network
+  // call, so without this a second click would send everything twice.
+  submitting: false,
 };

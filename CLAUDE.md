@@ -259,8 +259,20 @@ missing or misspelled flag means off, so a typo can't quietly start posting some
 
 | flag | what it does | now |
 | --- | --- | --- |
+| `hubspot` | POSTs the Forms v3 body. **Runs first and gates everything else.** | `false` by decision |
 | `googleSheets` | submits the hidden Webflow form, which Apps Script reads back into the sheet | `true` |
-| `hubspot` | POSTs the Forms v3 body | `false` by decision |
+
+**HubSpot is the gate.** It goes first, and nothing else happens unless it succeeds — no Webflow
+row, no redirect. A submission HubSpot rejected is not a submission, so logging it to the sheet or
+thanking the user for it would both be lies, and the sheet would end up disagreeing with the CRM.
+A failure leaves the user on a working form to retry from.
+
+With the HubSpot destination **off** there is nothing to gate on, so the rest proceeds — that is
+what keeps the switch usable in dev, and the console says the gate is inactive.
+
+`state.submitting` blocks a second submit while one is in flight, and the button greys for the
+duration. Submitting waits on a network call now, so without it a double click would send
+everything twice.
 
 A submit click validates, builds every payload, stores them on `state.lastPayloads`, logs them, and
 sends to each enabled destination.
