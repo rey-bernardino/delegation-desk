@@ -100,7 +100,7 @@ export const QUIZ_CONFIG = {
     blocks: ["thankyou-logo", "thankyou-body", "thankyou-timer"],
 
     // How long the thank-you stays up before the demo resets itself.
-    resetAfterMs: 10000,
+    resetAfterMs: 20000,
 
     // The bar inside [block=thankyou-timer] that shows the countdown.
     // drain: true empties it 100% -> 0% over resetAfterMs.
