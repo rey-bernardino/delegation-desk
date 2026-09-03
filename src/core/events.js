@@ -50,20 +50,15 @@ export function bindEvents({
     }
 
     if (cmd === "submit") {
-      const result = submission.submit();
+      // The quiz owns submission entirely — Webflow, HubSpot and the redirect
+      // are all handled in the controller — so the control's own action is
+      // always stopped.
+      event.preventDefault();
 
-      // Nothing is meant to leave the page while submission is disabled, so
-      // the button's own action is stopped either way.
-      if (!submission.isEnabled() || !result.ok) {
-        event.preventDefault();
-      }
-
-      if (!result.ok) {
-        const firstInvalid = result.validation?.firstInvalid;
-
-        firstInvalid?.focus?.();
-        lenis?.scrollTo(firstInvalid);
-      }
+      // Deliberately not awaited: the click handler has nothing left to do,
+      // and the controller handles both the failure messaging and the
+      // redirect.
+      submission.submit();
     }
   });
 

@@ -281,6 +281,8 @@
          honeypot and maxlength=256 fields. The submit handler preventDefaults
          so the harness doesn't navigate. -->
     <div class="w-form" style="display: none">
+      <div class="w-form-done" style="display:none">Thank you!</div>
+      <div class="w-form-fail" style="display:none">Oops!</div>
       <form id="wf-form-Delegation-Desk" name="wf-form-Delegation-Desk" data-name="Delegation Desk" method="get">
         <input id="cc-num" name="cc-num" type="text" autocomplete="off" tabindex="-1" aria-hidden="true" />
         <input class="w-input" maxlength="256" name="contact" type="text" id="contact" />
@@ -298,6 +300,13 @@
       document.getElementById("wf-form-Delegation-Desk").addEventListener("submit", (e) => {
         e.preventDefault();
         window.__wfSubmits.push(Object.fromEntries(new FormData(e.target).entries()));
+
+        // Stand in for Webflow's AJAX round trip: reveal .w-form-done (or
+        // .w-form-fail when __wfShouldFail is set) after a short delay.
+        setTimeout(function () {
+          var cls = window.__wfShouldFail ? ".w-form-fail" : ".w-form-done";
+          document.querySelector(cls).style.display = "block";
+        }, window.__wfDelay === undefined ? 120 : window.__wfDelay);
       });
     </script>
   </body>

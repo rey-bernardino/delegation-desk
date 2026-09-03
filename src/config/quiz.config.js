@@ -90,6 +90,29 @@ export const QUIZ_CONFIG = {
     },
   },
 
+  // Where the browser goes once a submission has landed.
+  redirect: {
+    enabled: true,
+
+    // Resolved against the current page's parent path, so
+    // /events/delegation-desk sends the user to /events/thank-you.
+    // Set relativeToParent: false for a top-level /thank-you instead.
+    path: "thank-you",
+    relativeToParent: true,
+
+    // Carry the current query string (utm_*, etc.) across to the thank-you
+    // page. Off, because the hidden fields already captured what matters.
+    preserveQuery: false,
+
+    // How long to wait for Webflow to confirm the submission before going
+    // anyway. Navigating early would abort the in-flight request.
+    waitForWebflowMs: 6000,
+
+    // Whether to redirect when Webflow explicitly reported a failure. Off, so
+    // a failed submission doesn't end on a page that thanks the user for it.
+    onFailure: false,
+  },
+
   // The hidden Webflow form that records each submission. It is the source
   // the Google Sheets Apps Script reads, via the Webflow Forms API.
   webflowForm: {

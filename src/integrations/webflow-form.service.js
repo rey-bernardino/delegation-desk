@@ -105,6 +105,79 @@ export function createWebflowFormService({ config }) {
       return true;
     },
 
+    // Webflow submits over AJAX and reports by revealing .w-form-done or
+    // .w-form-fail. Navigating away before that lands would abort the request,
+    // so the redirect has to wait for one of them.
+    //
+    // Resolves rather than rejects on timeout: a submission that took too long
+    // to confirm has usually still gone through, and hanging the user on a
+    // finished form is worse than redirecting a moment early.
+    waitForResult(timeoutMs = 6000) {
+      return new Promise((resolve) => {
+        const form = getForm();
+
+        if (!form) {
+          resolve({ ok: false, reason: "no-form" });
+          return;
+        }
+
+        const wrapper = form.closest(".w-form") || form.parentElement;
+
+        if (!wrapper) {
+          resolve({ ok: false, reason: "no-wrapper" });
+          return;
+        }
+
+        const done = wrapper.querySelector(".w-form-done");
+        const fail = wrapper.querySelector(".w-form-fail");
+
+        // Webflow toggles these with inline styles. The form itself is inside a
+        // hidden container, so computed display is "none" either way — the
+        // inline value is the only readable signal.
+        const isShown = (element) =>
+          Boolean(element) &&
+          element.style.display !== "" &&
+          element.style.display !== "none";
+
+        if (isShown(done)) {
+          resolve({ ok: true, reason: "already-done" });
+          return;
+        }
+
+        let settled = false;
+
+        const finish = (result) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          observer.disconnect();
+          window.clearTimeout(timer);
+          resolve(result);
+        };
+
+        const observer = new MutationObserver(() => {
+          if (isShown(done)) {
+            finish({ ok: true, reason: "done" });
+          } else if (isShown(fail)) {
+            finish({ ok: false, reason: "failed" });
+          }
+        });
+
+        observer.observe(wrapper, {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ["style", "class"],
+        });
+
+        const timer = window.setTimeout(
+          () => finish({ ok: false, reason: "timeout" }),
+          timeoutMs
+        );
+      });
+    },
+
     fillAndSubmit(summary) {
       const written = this.fill(summary);
 

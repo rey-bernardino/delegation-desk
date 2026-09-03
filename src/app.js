@@ -13,6 +13,7 @@ import { createFieldsService } from "./features/fields.service.js";
 import { createValidationService } from "./features/validation.service.js";
 import { createPayloadService } from "./features/payload.service.js";
 import { createSubmissionController } from "./features/submission.controller.js";
+import { createRedirectService } from "./features/redirect.service.js";
 import { createSelectionController } from "./features/selection.controller.js";
 import { bindEvents } from "./core/events.js";
 
@@ -50,6 +51,10 @@ const payload = createPayloadService({
   state,
 });
 
+const redirect = createRedirectService({
+  config: QUIZ_CONFIG,
+});
+
 const submission = createSubmissionController({
   config: QUIZ_CONFIG,
   state,
@@ -58,6 +63,8 @@ const submission = createSubmissionController({
   fields,
   submitButton,
   webflowForm,
+  redirect,
+  lenis,
 });
 
 const selection = createSelectionController({
@@ -114,6 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fields,
     validation,
     payload,
+    redirect,
     submission,
     selection,
     start,

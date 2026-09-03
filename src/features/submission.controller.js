@@ -14,6 +14,8 @@ export function createSubmissionController({
   fields,
   submitButton,
   webflowForm,
+  redirect,
+  lenis,
 }) {
   const settings = config.submission || {};
   const categoryKey = config.payload?.categoryKey || "category";
@@ -108,6 +110,37 @@ export function createSubmissionController({
       return payloads;
     },
 
+    // Sends the user on once everything that had to land has landed.
+    redirectAfter(result) {
+      if (!redirect?.isEnabled()) {
+        return null;
+      }
+
+      const url = redirect.resolveUrl();
+
+      // An explicit failure is the one case worth staying put for — thanking
+      // someone for a submission that didn't happen is worse than showing
+      // them a form that is still on screen. A timeout is not a failure: it
+      // usually means slow, not lost.
+      const failed = result.webflow && result.webflow.reason === "failed";
+
+      if (failed && config.redirect?.onFailure !== true) {
+        console.warn(
+          `Delegation Desk: not redirecting to ${url} — Webflow reported a failure`
+        );
+        return null;
+      }
+
+      if (!result.ok && config.redirect?.onFailure !== true) {
+        console.warn(
+          `Delegation Desk: not redirecting to ${url} — a destination failed`
+        );
+        return null;
+      }
+
+      return redirect.go(url);
+    },
+
     // Fills and submits the hidden Webflow form. Fire-and-forget: Webflow's
     // handler is asynchronous and gives nothing back to await.
     submitToWebflow(payloads) {
@@ -130,6 +163,20 @@ export function createSubmissionController({
 
       if (destinations.googleSheets === true) {
         result.sent.googleSheets = this.submitToWebflow(payloads);
+
+        // Wait for Webflow to confirm before anything can navigate away —
+        // its submission is an in-flight AJAX call that a redirect would kill.
+        if (result.sent.googleSheets) {
+          result.webflow = await webflowForm.waitForResult(
+            config.redirect?.waitForWebflowMs
+          );
+
+          if (!result.webflow.ok) {
+            console.warn(
+              `Delegation Desk: Webflow form did not confirm (${result.webflow.reason})`
+            );
+          }
+        }
       }
 
       if (destinations.hubspot === true) {
@@ -199,13 +246,23 @@ export function createSubmissionController({
       return data;
     },
 
-    submit() {
+    // Async, because a live submit waits on Webflow and HubSpot. The caller
+    // does not need to await it — nothing after the click depends on the
+    // result, and the redirect happens from in here.
+    async submit() {
       const result = validation.validateAll({ reveal: true });
 
       if (!result.isValid) {
         if (shouldLog()) {
           logBlocked(result);
         }
+
+        // Owned here rather than in the click handler: what happens on an
+        // invalid submit is this controller's decision, and the handler
+        // shouldn't need to know that focusing the first bad field is part
+        // of it.
+        result.firstInvalid?.focus?.();
+        lenis?.scrollTo(result.firstInvalid);
 
         return { ok: false, reason: "invalid", validation: result };
       }
@@ -230,10 +287,23 @@ export function createSubmissionController({
       }
 
       if (!this.isEnabled()) {
+        // Say where it would have gone, so the redirect can be checked in dev
+        // without anything being sent.
+        if (redirect?.isEnabled()) {
+          console.log(
+            "Delegation Desk: submission disabled — would redirect to",
+            redirect.resolveUrl()
+          );
+        }
+
         return { ok: true, submitted: false, payloads };
       }
 
-      return this.send(payloads);
+      const sendResult = await this.send(payloads);
+
+      this.redirectAfter(sendResult);
+
+      return sendResult;
     },
   };
 }

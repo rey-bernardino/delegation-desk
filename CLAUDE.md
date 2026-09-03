@@ -404,6 +404,28 @@ submission silently, with no error anywhere.
 answers (~3KB) but not a pathological one (~9KB) — the service warns whenever a value exceeds its
 field's `maxlength`, so truncation shows up in the console rather than silently downstream.
 
+### After submission
+
+`config.redirect` sends the user to a thank-you page once everything that had to land has landed.
+
+The target **follows the trail of the current page**: `redirect.path` is resolved against the
+current page's parent, so `/events/delegation-desk` → `/events/thank-you`, and the same quiz
+published at `/delegation-desk` → `/thank-you`. `relativeToParent: false` forces a top-level path;
+a full `https://…` URL is used verbatim.
+
+**The redirect waits for Webflow.** Its submission is an in-flight AJAX call, and navigating away
+would abort it — the row would simply never appear. `webflowForm.waitForResult()` watches the
+wrapper for `.w-form-done` / `.w-form-fail` (Webflow toggles them with inline styles, which is the
+only readable signal, since the form sits inside a hidden container so computed display is `none`
+either way) and resolves on whichever lands first, or on `waitForWebflowMs`.
+
+A **timeout is not a failure** — it usually means slow, not lost — so it still redirects. An
+explicit `.w-form-fail` does not, because thanking someone for a submission that didn't happen is
+worse than leaving the form on screen. `redirect.onFailure: true` overrides that.
+
+While `submission.enabled` is false, nothing sends and nothing navigates, but the console logs where
+it *would* have gone, so the path can be checked in dev.
+
 ## Google Sheets pipeline
 
 `appscript/` holds the Apps Script, which is **not** bundled or deployed by this repo — it is pasted
