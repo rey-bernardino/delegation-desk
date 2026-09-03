@@ -261,6 +261,13 @@ function wfEnsureHeaders_(sheet, headers, leadingHeaders) {
       ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
       : [];
 
+  // getLastColumn() reports the used range, which can run past the last real
+  // header when a column has been formatted or touched. Trailing blanks would
+  // push appended headers off into empty space.
+  while (existing.length && String(existing[existing.length - 1]).trim() === "") {
+    existing.pop();
+  }
+
   var hasHeaders = existing.some(function (cell) {
     return String(cell).trim() !== "";
   });
@@ -307,14 +314,31 @@ function wfRowFor_(headers, values) {
   });
 }
 
-function wfExistingIds_(sheet) {
+function wfExistingIds_(sheet, headerName) {
   var seen = {};
 
-  if (sheet.getLastRow() < 2) {
+  if (!sheet || sheet.getLastRow() < 2) {
     return seen;
   }
 
-  var ids = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  var wanted = headerName || "Submission ID";
+  var lastColumn = sheet.getLastColumn();
+
+  if (!lastColumn) {
+    return seen;
+  }
+
+  var headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  var column = headers.indexOf(wanted) + 1;
+
+  // The id column is column A on Submissions but sits after Output and
+  // Submitted at on a category sheet, so it has to be found by header rather
+  // than assumed.
+  if (!column) {
+    return seen;
+  }
+
+  var ids = sheet.getRange(2, column, sheet.getLastRow() - 1, 1).getValues();
 
   ids.forEach(function (row) {
     var id = String(row[0]).trim();
@@ -406,6 +430,26 @@ function wfFlushPending_(pending, stats) {
         return wfRowFor_(headers, values).slice(firstOwned, lastOwned + 1);
       });
 
+      // A sheet trimmed to fewer columns than the payload needs would throw
+      // "those columns are out of bounds" and lose the whole batch.
+      var neededColumns = lastOwned + 1;
+
+      if (entry.sheet.getMaxColumns() < neededColumns) {
+        entry.sheet.insertColumnsAfter(
+          entry.sheet.getMaxColumns(),
+          neededColumns - entry.sheet.getMaxColumns()
+        );
+      }
+
+      var neededRows = entry.sheet.getLastRow() + rows.length;
+
+      if (entry.sheet.getMaxRows() < neededRows) {
+        entry.sheet.insertRowsAfter(
+          entry.sheet.getMaxRows(),
+          neededRows - entry.sheet.getMaxRows()
+        );
+      }
+
       entry.sheet
         .getRange(
           entry.sheet.getLastRow() + 1,
@@ -481,6 +525,7 @@ function wfWriteLog_(stats) {
     "Run at",
     "Fetched",
     "Added",
+    "Backfilled",
     "Duplicates",
     "No category sheet",
     "Errors",
@@ -493,6 +538,7 @@ function wfWriteLog_(stats) {
       "Run at": new Date(),
       Fetched: stats.fetched,
       Added: stats.added,
+      Backfilled: stats.backfilled,
       Duplicates: stats.duplicates,
       "No category sheet": stats.missingSheet,
       Errors: stats.errors.length ? stats.errors.join(" | ") : "",
@@ -512,6 +558,7 @@ function ingestWebflowSubmissions() {
     added: 0,
     duplicates: 0,
     missingSheet: 0,
+    backfilled: 0,
     errors: [],
     addedIds: [],
     durationMs: 0,
@@ -538,7 +585,22 @@ function ingestWebflowSubmissions() {
 
     // The Submissions sheet is the record of what has been ingested, so there
     // is no separate cursor to drift out of sync.
-    var seen = wfExistingIds_(submissionsSheet);
+    // Dedupe is per destination sheet, not global. A submission already in
+    // Submissions can still be missing from its category sheet — because that
+    // sheet was cleared, recreated, or added later — and skipping it outright
+    // would leave the category sheets permanently unable to catch up.
+    var seenBySheet = {};
+
+    seenBySheet[SHEET_SUBMISSIONS] = wfExistingIds_(submissionsSheet);
+
+    function alreadyIn(sheetName, sheet, id) {
+      if (!seenBySheet[sheetName]) {
+        seenBySheet[sheetName] = wfExistingIds_(sheet);
+      }
+
+      return seenBySheet[sheetName][id] === true;
+    }
+
     var pending = {};
 
     submissions.forEach(function (submission) {
@@ -556,7 +618,21 @@ function ingestWebflowSubmissions() {
         return;
       }
 
-      if (seen[parsed.id]) {
+      var categorySheet = parsed.categoryLabel
+        ? wfGetSheet_(parsed.categoryLabel)
+        : null;
+
+      var needsSubmissions = !alreadyIn(
+        SHEET_SUBMISSIONS,
+        submissionsSheet,
+        parsed.id
+      );
+
+      var needsCategory =
+        Boolean(categorySheet) &&
+        !alreadyIn(parsed.categoryLabel, categorySheet, parsed.id);
+
+      if (!needsSubmissions && !needsCategory) {
         stats.duplicates++;
         return;
       }
@@ -568,23 +644,23 @@ function ingestWebflowSubmissions() {
         stats.errors.push(parsed.id + ": " + message);
       });
 
-      var submissionsRow = wfSubmissionsRow_(parsed);
+      if (needsSubmissions) {
+        var submissionsRow = wfSubmissionsRow_(parsed);
 
-      wfQueueRow_(
-        pending,
-        SHEET_SUBMISSIONS,
-        submissionsSheet,
-        submissionsRow.headers,
-        submissionsRow.values
-      );
+        wfQueueRow_(
+          pending,
+          SHEET_SUBMISSIONS,
+          submissionsSheet,
+          submissionsRow.headers,
+          submissionsRow.values
+        );
 
-      seen[parsed.id] = true;
+        seenBySheet[SHEET_SUBMISSIONS][parsed.id] = true;
+        stats.added++;
+        stats.addedIds.push(parsed.id);
+      }
 
-      var categorySheet = parsed.categoryLabel
-        ? wfGetSheet_(parsed.categoryLabel)
-        : null;
-
-      if (categorySheet) {
+      if (needsCategory) {
         var categoryRow = wfCategoryRow_(parsed);
 
         wfQueueRow_(
@@ -594,15 +670,23 @@ function ingestWebflowSubmissions() {
           categoryRow.headers,
           categoryRow.values
         );
-      } else {
+
+        seenBySheet[parsed.categoryLabel][parsed.id] = true;
+
+        // Counted separately: a row that goes only to a category sheet is a
+        // backfill, not a new submission, and conflating them would make the
+        // Logs sheet lie about how many people came through.
+        if (!needsSubmissions) {
+          stats.backfilled++;
+        }
+      }
+
+      if (!categorySheet) {
         stats.missingSheet++;
         stats.errors.push(
           "no sheet named '" + parsed.categoryLabel + "' for " + parsed.id
         );
       }
-
-      stats.added++;
-      stats.addedIds.push(parsed.id);
     });
 
     wfFlushPending_(pending, stats);
@@ -618,9 +702,10 @@ function ingestWebflowSubmissions() {
   wfWriteLog_(stats);
 
   Logger.log(
-    "Ingest done — fetched %s, added %s, duplicates %s, errors %s (%sms)",
+    "Ingest done — fetched %s, added %s, backfilled %s, duplicates %s, errors %s (%sms)",
     stats.fetched,
     stats.added,
+    stats.backfilled,
     stats.duplicates,
     stats.errors.length,
     stats.durationMs

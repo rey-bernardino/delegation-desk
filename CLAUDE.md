@@ -543,9 +543,18 @@ Rows are queued and written per sheet in one `setValues` call per run, not `appe
 submission — `appendRow` is a round trip each time, which is slow when a backlog lands, and
 queueing lets every row in a run share one header set.
 
-Dedupe reads the submission ids already in `Submissions` rather than keeping a cursor, so there is
-no stored position to drift, and deleting a row re-ingests it. A timestamp cursor would skip two
-submissions landing in the same second.
+Dedupe is **per destination sheet**, not global, and reads the ids already in each sheet rather than
+keeping a cursor — so there is no stored position to drift, and deleting a row re-ingests it. A
+timestamp cursor would skip two submissions landing in the same second.
+
+Per-sheet matters: a submission already in `Submissions` can still be missing from its category
+sheet, because that sheet was cleared, recreated, or added later. Deduping globally skipped those
+outright, which left category sheets permanently unable to catch up — headers but no rows. Rows
+written only to a category sheet are counted as `Backfilled` in `Logs`, separately from `Added`, so
+the log doesn't overstate how many people came through.
+
+The id column is found by header, not position: it is column A on `Submissions` but sits after
+`Output` and `Submitted at` on a category sheet.
 
 The token lives in Script Properties as `WEBFLOW_API_TOKEN` — never in the repo, and never in a
 message. The site id is `6513fda5217cc80d379e2473`, readable from the live page's
