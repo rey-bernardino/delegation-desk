@@ -296,11 +296,21 @@ it doesn't know, and that hidden input is the property the portal actually has.
 }
 ```
 
-`legalConsentOptions` is **not** included — this quiz has no consent checkbox, so there is no
-consent to assert. Add it if the HubSpot form requires one.
+**The `hutk` guard — do not "simplify" it.** `context.hutk` is added only when the `hubspotutk`
+cookie exists and is non-blank; otherwise **the key is absent entirely**. Sending `hutk: null` or
+`hutk: ""` makes HubSpot reject the whole submission, and the cookie legitimately does not exist for
+anyone whose browser blocked it — Brave, Safari ITP, any cookie blocker, or a first visit before
+HubSpot's script ran. Collapsing this to `context.hutk = getCookie("hubspotutk")` fails exactly the
+users who are hardest to reproduce. Carried over from athena-form's `buildContext()`.
 
-`config.hubspot.portalId` and `formId` are `null` and must be filled before `submission.enabled`
-can be flipped. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
+Field values are likewise always strings — `valueOf()` guarantees it, and the mapping coerces
+`?? ""` — because a null value is rejected the same way a null hutk is.
+
+`legalConsentOptions` is built only when `config.hubspot.legalConsent.enabled` is true, and is
+**off** by default: a HubSpot form with GDPR consent options enabled rejects a submission that omits
+it, and a form without them rejects one that includes it, so the correct setting depends on the form
+and isn't guessable. The consent `text` is read from the opt-in checkbox's label rather than
+hardcoded, so it always matches what the user actually ticked. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
 `submitForm()` error typing, but nothing calls it while submission is disabled.
 
 ### The summary payload

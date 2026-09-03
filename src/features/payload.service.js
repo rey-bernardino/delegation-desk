@@ -149,6 +149,37 @@ export function createPayloadService({ config, dom, state }) {
       return payload;
     },
 
+    // Only included when config.hubspot.legalConsent.enabled is true. A form
+    // with GDPR options turned on rejects a submission that omits this; a form
+    // without them rejects one that includes it. Which way round depends on
+    // the HubSpot form, so this is off until that is known.
+    //
+    // The consent text is read from the opt-in label rather than hardcoded, so
+    // it always matches what the user actually agreed to.
+    buildLegalConsent() {
+      const legal = config.hubspot?.legalConsent;
+
+      if (!legal?.enabled) {
+        return null;
+      }
+
+      const optinField = document.querySelector(
+        `[name="${legal.optinFieldName}"]`
+      );
+
+      const label = optinField
+        ?.closest(wrapperSelector)
+        ?.querySelector(labelSelector);
+
+      return {
+        consent: {
+          consentToProcess: true,
+          text: (label?.textContent || legal.fallbackText || "").trim(),
+          communications: legal.communications || [],
+        },
+      };
+    },
+
     // HubSpot Forms v3 submission body, same shape as athena-form's
     // hubspot.service.js buildSubmissionPayload().
     buildHubspotApiPayload(variant = state.selectedVariant) {
@@ -163,17 +194,40 @@ export function createPayloadService({ config, dom, state }) {
         pageName: document.title,
       };
 
+      // DO NOT simplify to `context.hutk = getCookie("hubspotutk")`.
+      //
+      // The key has to be absent, not null or empty. HubSpot rejects the whole
+      // submission over a blank hutk, and the cookie legitimately doesn't
+      // exist for anyone whose browser blocked it — Brave, Safari ITP, any
+      // cookie blocker, or a first visit before HubSpot's script ran. Sending
+      // the key regardless fails exactly the users who are hardest to debug.
+      // Carried over from athena-form's hubspot.service.js buildContext().
       const hutk = getCookie("hubspotutk");
 
       if (hutk && String(hutk).trim()) {
         context.hutk = String(hutk).trim();
       }
 
-      return {
+      const apiPayload = {
         submittedAt: Date.now(),
-        fields: Object.entries(flat).map(([name, value]) => ({ name, value })),
+
+        // Values are always strings — valueOf() guarantees it — because a null
+        // value is rejected the same way a null hutk is.
+        fields: Object.entries(flat).map(([name, value]) => ({
+          name,
+          value: value ?? "",
+        })),
+
         context,
       };
+
+      const consent = this.buildLegalConsent();
+
+      if (consent) {
+        apiPayload.legalConsentOptions = consent;
+      }
+
+      return apiPayload;
     },
 
     // Sheets-shaped. Deliberately different from the quiz payload: `fields`

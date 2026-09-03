@@ -64,10 +64,25 @@ export const QUIZ_CONFIG = {
   hubspot: {
     submitBaseUrl: "https://api.hsforms.com/submissions/v3/integration/submit",
 
-    // Not known yet — fill these in before flipping submission.enabled.
     // Same shape as athena-form's config.hubspot.
     portalId: "20122740",
     formId: "287352d4-66f8-494a-9e77-3144bf48822a",
+
+    // GDPR / legal consent. Off until the HubSpot form's setting is known: a
+    // form with consent options enabled rejects a submission that omits this,
+    // and a form without them rejects one that includes it.
+    legalConsent: {
+      enabled: false,
+
+      // Consent text is read from this field's label so it always matches
+      // what the user actually ticked.
+      optinFieldName: "optin_email",
+      fallbackText: "",
+
+      // Subscription type ids, e.g.
+      // [{ value: true, subscriptionTypeId: 12345, text: "..." }]
+      communications: [],
+    },
   },
 
   submitButton: {
