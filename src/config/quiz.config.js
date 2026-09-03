@@ -128,10 +128,16 @@ export const QUIZ_CONFIG = {
     // stores the payloads.
     enabled: false,
 
-    // Which destinations a live submit goes to, once enabled.
+    // Which destinations a live submit goes to, once enabled. Both must be
+    // explicitly true — anything else is off.
     destinations: {
-      webflow: true,
-      hubspot: true,
+      // The hidden Webflow form. Named for what it feeds: Apps Script reads
+      // those submissions back through the Webflow Forms API and writes them
+      // into the spreadsheet. Turning this off stops the Sheets pipeline.
+      googleSheets: true,
+
+      // Off for now, by decision. The payload is built and logged regardless.
+      hubspot: false,
     },
 
     // Print both payloads to the console on every submit click.

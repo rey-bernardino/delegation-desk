@@ -253,7 +253,16 @@ which field is missing.
 
 ## Submission
 
-**Nothing is posted.** `config.submission.enabled` is `false` pending an internal decision on the
+**Nothing is posted.** `config.submission.enabled` is the master switch and is `false`. Under it,
+`config.submission.destinations` gates each destination and **each must be explicitly `true`** — a
+missing or misspelled flag means off, so a typo can't quietly start posting somewhere:
+
+| flag | what it does | now |
+| --- | --- | --- |
+| `googleSheets` | submits the hidden Webflow form, which Apps Script reads back into the sheet | `true` |
+| `hubspot` | POSTs the Forms v3 body | `false` by decision |
+
+`config.submission.enabled` is `false` pending an internal decision on the
 destination. A submit click validates, builds both payloads, stores them on `state.lastPayloads`,
 logs them, and stops the button's own action. When the decision lands,
 `submission.controller.js` is the only file that needs to change.

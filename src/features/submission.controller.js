@@ -120,16 +120,19 @@ export function createSubmissionController({
     },
 
     // Sends to whichever destinations are switched on. HubSpot is awaited
-    // because it reports failure; Webflow is not, because it cannot.
+    // because it reports failure; the Webflow form is not, because it cannot.
+    //
+    // Each destination must be explicitly true. A missing or misspelled flag
+    // means "off", so a typo can't quietly start posting somewhere.
     async send(payloads) {
       const destinations = settings.destinations || {};
       const result = { ok: true, submitted: true, payloads, sent: {} };
 
-      if (destinations.webflow !== false) {
-        result.sent.webflow = this.submitToWebflow(payloads);
+      if (destinations.googleSheets === true) {
+        result.sent.googleSheets = this.submitToWebflow(payloads);
       }
 
-      if (destinations.hubspot !== false) {
+      if (destinations.hubspot === true) {
         try {
           result.sent.hubspot = await this.postToHubspot(payloads.hubspotApi);
         } catch (error) {
