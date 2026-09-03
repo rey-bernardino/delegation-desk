@@ -175,12 +175,64 @@ export function createPayloadService({ config, dom, state }) {
       };
     },
 
+    // Sheets-shaped. Deliberately different from the quiz payload: `fields`
+    // and `labels` are flat maps keyed by field name, because a consumer
+    // turning this into columns wants `Object.keys(fields)` for the column
+    // order and `labels[key]` for the header. JSON preserves key order, so
+    // column order stays stable as long as the Webflow markup order does.
+    buildSummaryPayload(variant = state.selectedVariant) {
+      if (!variant) {
+        return null;
+      }
+
+      const summarySettings = settings.summary || {};
+
+      const payload = {
+        v: summarySettings.version ?? 1,
+        [categoryKey]: variant,
+        categoryLabel: this.categoryLabelFor(variant),
+        submittedAt: new Date().toISOString(),
+        contact: {},
+        fields: {},
+      };
+
+      this.getInfoFields().forEach((field) => {
+        payload.contact[field.name] = this.valueOf(field);
+      });
+
+      const categoryFields = this.getCategoryFields(variant);
+
+      categoryFields.forEach((field) => {
+        payload.fields[field.name] = this.valueOf(field);
+      });
+
+      if (summarySettings.includeLabels !== false) {
+        payload.labels = {};
+
+        categoryFields.forEach((field) => {
+          payload.labels[field.name] = this.labelOf(field);
+        });
+      }
+
+      return payload;
+    },
+
+    buildSummaryJson(variant = state.selectedVariant) {
+      const summary = this.buildSummaryPayload(variant);
+
+      return summary ? JSON.stringify(summary) : null;
+    },
+
     buildAll(variant = state.selectedVariant) {
       const quiz = this.buildQuizPayload(variant);
+      const summary = this.buildSummaryPayload(variant);
 
       return {
         category: variant || null,
         categoryLabel: this.categoryLabelFor(variant),
+
+        summary,
+        summaryJson: summary ? JSON.stringify(summary) : null,
 
         quiz,
 

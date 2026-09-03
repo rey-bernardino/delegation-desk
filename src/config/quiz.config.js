@@ -38,6 +38,17 @@ export const QUIZ_CONFIG = {
 
     // Key the selected category is written to in the quiz payload.
     categoryKey: "category",
+
+    summary: {
+      // Bump when the shape changes, so a downstream reader can branch on it
+      // instead of guessing. Never reuse a number.
+      version: 1,
+
+      // Ship the question text alongside the answers so the consumer can build
+      // its headers from any single row rather than hardcoding a schema.
+      // Costs ~570 bytes on the largest category. Turn off if size bites.
+      includeLabels: true,
+    },
   },
 
   hubspot: {
@@ -77,6 +88,10 @@ export const QUIZ_CONFIG = {
   hiddenFields: {
     // Filled with variantLabels[variant] the moment a category is picked.
     choice: "event_allin_delegationdesk_choice",
+
+    // Filled on submit with the summary JSON. Read back out of the Webflow
+    // Forms API downstream and exploded into Google Sheets columns.
+    summary: "event_allin_delegationdesk_summary",
   },
 
   intro: {

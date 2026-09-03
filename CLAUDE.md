@@ -91,8 +91,9 @@ is picked, with the **display label** from `config.variantLabels`, not the slug:
 | `brief` | Brief Me on Someone |
 | `offsite` | Company Offsite |
 
-`event_allin_delegationdesk_summary` is still **empty** — it is the obvious home for `quizJson`, but
-nothing writes to it yet.
+`config.hiddenFields.summary` (`event_allin_delegationdesk_summary`) is written on submit with the
+summary JSON — see **The summary payload** below. It is filled *before* the HubSpot payload is
+built, so that payload carries the value rather than an empty string.
 
 Variants are `travel`, `gift`, `deck`, `brief`, `offsite`. Per-variant block names are templated in
 config with `{variant}` — `h1-{variant}` resolves to `[block="h1-travel"]`, and `enterFormBlocks`
@@ -271,6 +272,37 @@ consent to assert. Add it if the HubSpot form requires one.
 `config.hubspot.portalId` and `formId` are `null` and must be filled before `submission.enabled`
 can be flipped. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
 `submitForm()` error typing, but nothing calls it while submission is disabled.
+
+### The summary payload
+
+Written into the hidden summary field on submit, read back downstream out of the Webflow Forms API,
+and exploded into Google Sheets columns. Shaped for that consumer, which is why it differs from the
+quiz payload — `fields` and `labels` are **flat maps keyed by field name**, so the reader takes
+`Object.keys(fields)` for column order and `labels[key]` for the header. JSON preserves key order,
+so column order stays stable as long as the Webflow markup order does.
+
+```json
+{
+  "v": 1,
+  "category": "travel",
+  "categoryLabel": "Weekend Trip Itinerary",
+  "submittedAt": "2026-09-03T02:41:51.884Z",
+  "contact": { "firstname": "Rey", "lastname": "Bernardino", "email": "…", "company": "Athena" },
+  "fields": { "trip-destination": "Tokyo", "trip-budget": "5000" },
+  "labels": { "trip-destination": "Preferred destination, or \"surprise me\"", "trip-budget": "Total trip budget" }
+}
+```
+
+- `v` (`config.payload.summary.version`) — bump when the shape changes so a downstream reader can
+  branch on it rather than guess. Never reuse a number.
+- `labels` makes each row self-describing: the consumer builds headers from any single row instead
+  of hardcoding a schema, so a reworded question updates the header on its own. Costs 570 bytes on
+  the largest category; `config.payload.summary.includeLabels: false` drops it.
+- `contact` is kept out of `fields` so a per-category sheet can lay out contact columns first and
+  answer columns after, and an all-submissions sheet can ignore `fields` entirely.
+
+Measured sizes for travel (11 fields, the largest category): ~1.3KB with typical answers, ~3.1KB
+with long ones, ~9KB with pathologically verbose ones. The field has no `maxlength`.
 
 ### Console helper
 

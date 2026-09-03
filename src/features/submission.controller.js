@@ -11,6 +11,7 @@ export function createSubmissionController({
   state,
   validation,
   payload,
+  fields,
 }) {
   const settings = config.submission || {};
   const categoryKey = config.payload?.categoryKey || "category";
@@ -20,7 +21,8 @@ export function createSubmissionController({
   }
 
   function logPayloads(payloads) {
-    const { quiz, hubspot, hubspotApi, quizJson, categoryLabel } = payloads;
+    const { summary, summaryJson, quiz, hubspot, hubspotApi, categoryLabel } =
+      payloads;
     const canGroup = typeof console.group === "function";
 
     if (canGroup) {
@@ -29,21 +31,19 @@ export function createSubmissionController({
       );
     }
 
-    console.log("quiz payload:", quiz);
+    // What actually goes into the hidden field and travels downstream.
+    console.log("summary JSON (hidden field → Sheets):", summaryJson);
+    console.log(`  ${summaryJson?.length ?? 0} chars`);
+    console.log("summary payload:", summary);
 
     // The answers read far better as a table than as a nested array.
     if (typeof console.table === "function" && quiz?.answers?.length) {
       console.table(quiz.answers);
     }
 
+    console.log("quiz payload:", quiz);
     console.log("hubspot payload (flat):", hubspot);
     console.log("hubspot API body (Forms v3):", hubspotApi);
-
-    if (typeof console.table === "function" && hubspotApi?.fields?.length) {
-      console.table(hubspotApi.fields);
-    }
-
-    console.log("quiz payload as JSON (for the single field):", quizJson);
 
     if (canGroup) {
       console.groupEnd();
@@ -159,6 +159,15 @@ export function createSubmissionController({
         }
 
         return { ok: false, reason: "invalid", validation: result };
+      }
+
+      // Write the summary JSON into its hidden field before anything is
+      // built, so the HubSpot payload picks the filled value up rather than
+      // an empty string.
+      const summaryField = config.hiddenFields?.summary;
+
+      if (summaryField) {
+        fields.setValue(summaryField, payload.buildSummaryJson());
       }
 
       const payloads = payload.buildAll();

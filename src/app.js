@@ -45,6 +45,7 @@ const submission = createSubmissionController({
   state,
   validation,
   payload,
+  fields,
 });
 
 const selection = createSelectionController({
