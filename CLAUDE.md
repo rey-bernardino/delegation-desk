@@ -420,7 +420,7 @@ id rather than by a name that can be edited in the Designer.
 | `syncNow()` | manual run, identical path so it can't behave differently from the trigger |
 | `debugFetchSubmissions()` | fetches without writing; dumps the raw shape and checks tab names |
 | `resetAllSheets()` | **dry run** — reports what a reset would delete |
-| `resetAllSheetsConfirmed()` | destructive — clears every managed sheet, headers included |
+| `resetAllSheetsConfirmed()` | destructive — clears every managed sheet, headers included; asks for `RESET_PASSWORD` first |
 | `setupIngestTrigger()` / `deleteIngestTriggers()` | start / stop the 5-minute schedule |
 | `ingestStatus()` | whether the schedule is on, and when it last ran |
 
@@ -429,7 +429,12 @@ status, connection check, and both resets. It is a simple trigger, so it needs n
 menu appears on reload. Menu actions report through `wfToast_`, because `Logger.log` is invisible to
 someone working in the sheet.
 
-The reset is split in two on purpose: the easy-to-run name is the one that does nothing. Both live
+Script Properties the ingest needs: `WEBFLOW_API_TOKEN`, `FORM_ID`, and `RESET_PASSWORD`. None of
+them are in this repo — it is public, so jsDelivr can serve the bundle.
+
+The reset is split in two on purpose: the easy-to-run name is the one that does nothing. The
+destructive half also asks for `RESET_PASSWORD`, which guards a mis-click in a dropdown rather than
+providing security — anyone who can open the script can read the property. Both live
 only in dev — clearing headers as well as rows matters while the question set is still changing,
 since a stale column would otherwise linger after a field is renamed.
 

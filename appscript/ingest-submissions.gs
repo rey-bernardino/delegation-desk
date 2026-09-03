@@ -14,6 +14,7 @@
  * SETUP — Project Settings → Script Properties:
  *   WEBFLOW_API_TOKEN   the API token (never commit it, never paste it in chat)
  *   FORM_ID             the Delegation Desk form id
+ *   RESET_PASSWORD      gates "Reset — clear everything"
  *
  * Then run ingestWebflowSubmissions() once by hand and read the Logs sheet.
  * setupIngestTrigger() installs the recurring run.
@@ -785,16 +786,80 @@ function resetAllSheets() {
 }
 
 /**
+ * The password gate on the destructive reset.
+ *
+ * This is a guard against a mis-click in a dropdown, not security: anyone who
+ * can open the script can read the property. It exists so that "Reset — clear
+ * everything" cannot be the thing that happens when someone means to click
+ * "Reset — preview".
+ *
+ * The password lives in Script Properties as RESET_PASSWORD rather than in
+ * this file, because this repo is public.
+ */
+function wfCheckResetPassword_() {
+  var expected = PropertiesService.getScriptProperties().getProperty(
+    "RESET_PASSWORD"
+  );
+
+  if (!expected) {
+    wfToast_(
+      "RESET_PASSWORD is not set. Project Settings → Script Properties → " +
+        "add RESET_PASSWORD before a reset can run."
+    );
+    return false;
+  }
+
+  var ui;
+
+  try {
+    ui = SpreadsheetApp.getUi();
+  } catch (error) {
+    // No UI means no way to ask, so refuse. Failing closed matters more here
+    // than anywhere else in this file.
+    Logger.log(
+      "Reset needs the spreadsheet UI — run it from the Delegation Desk menu."
+    );
+    return false;
+  }
+
+  var response = ui.prompt(
+    "Reset — clear everything",
+    "This clears every Delegation Desk sheet, headers included.\n" +
+      "It cannot be undone from here.\n\n" +
+      "Enter the reset password:",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    wfToast_("Reset cancelled — nothing was cleared.");
+    return false;
+  }
+
+  if (String(response.getResponseText()).trim() !== String(expected).trim()) {
+    wfToast_("Wrong password — nothing was cleared.");
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Destructive. Clears every managed sheet completely — headers included, so
  * the next ingest rebuilds them from whatever the payload looks like then.
  * That matters in dev, where the question set is still changing and stale
  * columns would otherwise linger.
  *
- * Does not touch triggers; deleteIngestTriggers() does that.
+ * Asks for the reset password first. Does not touch triggers;
+ * deleteIngestTriggers() does that.
  */
 function resetAllSheetsConfirmed() {
+  if (!wfCheckResetPassword_()) {
+    return null;
+  }
+
   var spreadsheet = SpreadsheetApp.getActive();
   var cleared = [];
+  var rowsCleared = 0;
 
   wfManagedSheetNames_().forEach(function (name) {
     var sheet = spreadsheet.getSheetByName(name);
@@ -806,6 +871,8 @@ function resetAllSheetsConfirmed() {
 
     var dataRows = Math.max(0, sheet.getLastRow() - 1);
 
+    rowsCleared += dataRows;
+
     sheet.clear();
     sheet.setFrozenRows(0);
 
@@ -813,8 +880,13 @@ function resetAllSheetsConfirmed() {
   });
 
   Logger.log("Cleared: %s", cleared.join(", ") || "nothing");
-  Logger.log(
-    "Headers are gone too — the next ingest rebuilds them from the payload."
+
+  wfToast_(
+    "Reset done — cleared " +
+      rowsCleared +
+      " row(s) across " +
+      cleared.length +
+      " sheet(s). Headers are gone too; the next sync rebuilds them."
   );
 
   return cleared;
