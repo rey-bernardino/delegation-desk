@@ -11,6 +11,9 @@ export const state = {
   // Whether the quiz blocks are on screen, as opposed to the intro.
   showingQuiz: false,
 
+  // Whether the thank-you blocks are on screen, waiting out the reset timer.
+  showingThankyou: false,
+
   // Payloads from the last submit attempt, kept for inspection.
   lastPayloads: null,
 

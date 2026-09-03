@@ -426,9 +426,39 @@ submission silently, with no error anywhere.
 answers (~3KB) but not a pathological one (~9KB) — the service warns whenever a value exceeds its
 field's `maxlength`, so truncation shows up in the console rather than silently downstream.
 
-### After submission
+### After submission — the kiosk loop
 
-`config.redirect` sends the user to a thank-you page once everything that had to land has landed.
+This runs on an iPad at an event, so a successful submission does **not** navigate. It swaps the
+quiz for `thankyou-logo` / `thankyou-body` / `thankyou-timer`, drains the countdown bar, and resets
+itself for the next person. `[cmd=reset]`, inside the timer block, does the same immediately.
+
+`config.thankyou.resetAfterMs` is the countdown (10s). The bar (`.decor_timer-progress`) is driven
+by a single `width` transition from 100% to 0% rather than a per-frame tick — the browser
+interpolates it and there is nothing to keep in sync. The countdown starts *after* the thank-you has
+faded in, or the bar would already be part-drained before anyone could see it.
+
+**Reset means "next attendee", which is stricter than a category switch:**
+
+- `fields.clearAll({ includePreserved: true })` — clears the contact fields and the opt-in too.
+  `config.preserveFormBlocks` is for switching category, not for handing the iPad to a stranger:
+  leaving one person's name and email on screen would be a privacy problem.
+- The hidden fields are cleared explicitly, since they carry no `.d-field` class and `clearAll`
+  never sees them. Left alone, the next submission would ship the previous category label and
+  summary JSON.
+- `webflowForm.restore()` puts the hidden form back. **Webflow hides the form and reveals
+  `.w-form-done` after a submission and never undoes it**, so without this the kiosk would record
+  the first person and then silently stop.
+- `state.submitted` / `submitting` / `selectedVariant` / `showingQuiz` are cleared, and the submit
+  button is greyed, since the form is empty again.
+
+A manual reset cancels the pending timer, so it can't fire later and wipe the next person's
+half-filled form.
+
+### Redirect (superseded)
+
+`config.redirect` is **off** — the in-page thank-you above replaced it, because a redirect would
+leave the event iPad on a page nobody resets. The machinery is kept wired: flip `thankyou.enabled`
+off and `redirect.enabled` on for a non-kiosk deployment.
 
 The target **follows the trail of the current page**: `redirect.path` is resolved against the
 current page's parent, so `/events/delegation-desk` → `/events/thank-you`, and the same quiz
@@ -509,6 +539,8 @@ message. The site id is `6513fda5217cc80d379e2473`, readable from the live page'
 - **9 (done)** — summary JSON into `event_allin_delegationdesk_summary`, shaped for Sheets.
 - **10 (done)** — submit button greys out until the category is complete.
 - **11 (done)** — `[form-block=optin]` in the flow, required, routed to HubSpot.
+- **12 (done)** — HubSpot success gates the Webflow log; submit button locks out duplicates.
+- **13 (done)** — in-page thank-you, 10s countdown, and a full kiosk reset on `[cmd=reset]`.
 - **7 (done)** — Lenis scroll limit refreshed on every height change.
 - Next — decide the destination, then post to Webflow + HubSpot.
 

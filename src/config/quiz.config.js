@@ -90,9 +90,33 @@ export const QUIZ_CONFIG = {
     },
   },
 
-  // Where the browser goes once a submission has landed.
-  redirect: {
+  // What happens after a successful submission. The quiz is a kiosk at an
+  // event: it shows the thank-you blocks, counts down, and resets itself for
+  // the next person.
+  thankyou: {
     enabled: true,
+
+    // Faded in after a submission, in this order.
+    blocks: ["thankyou-logo", "thankyou-body", "thankyou-timer"],
+
+    // How long the thank-you stays up before the demo resets itself.
+    resetAfterMs: 10000,
+
+    // The bar inside [block=thankyou-timer] that shows the countdown.
+    // drain: true empties it 100% -> 0% over resetAfterMs.
+    timerBar: ".decor_timer-progress",
+    drain: true,
+
+    stagger: 90,
+    gap: 60,
+  },
+
+  // Superseded by the in-page thank-you above, which is what the kiosk needs —
+  // a redirect would leave the event iPad on a page nobody resets. Kept
+  // because the machinery is still wired: flip thankyou.enabled off and this
+  // on to go back to a thank-you page.
+  redirect: {
+    enabled: false,
 
     // Resolved against the current page's parent path, so
     // /events/delegation-desk sends the user to /events/thank-you.

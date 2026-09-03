@@ -41,10 +41,15 @@ export function createFieldsService({ config }) {
 
     // Returns the fields it actually cleared, so the caller can reset their
     // validation state too.
-    clearAll() {
-      const cleared = this.getFields().filter(
-        (field) => !this.isPreserved(field)
-      );
+    //
+    // includePreserved is for a kiosk reset, where the next person must not
+    // inherit the previous one's name, email or consent. A category switch
+    // uses the default and keeps them.
+    clearAll(options = {}) {
+      const cleared =
+        options.includePreserved === true
+          ? this.getFields()
+          : this.getFields().filter((field) => !this.isPreserved(field));
 
       cleared.forEach((field) => {
         const type = (field.type || "").toLowerCase();

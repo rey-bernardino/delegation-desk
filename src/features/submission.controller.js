@@ -15,6 +15,7 @@ export function createSubmissionController({
   submitButton,
   webflowForm,
   redirect,
+  thankyou,
   lenis,
 }) {
   const settings = config.submission || {};
@@ -332,7 +333,14 @@ export function createSubmissionController({
       if (!this.isEnabled()) {
         // Say where it would have gone, so the redirect can be checked in dev
         // without anything being sent.
-        if (redirect?.isEnabled()) {
+        if (thankyou?.isEnabled()) {
+          console.log(
+            "Delegation Desk: submission disabled — would show the thank-you " +
+              "blocks and reset after " +
+              (config.thankyou?.resetAfterMs || 10000) +
+              "ms"
+          );
+        } else if (redirect?.isEnabled()) {
           console.log(
             "Delegation Desk: submission disabled — would redirect to",
             redirect.resolveUrl()
@@ -361,6 +369,14 @@ export function createSubmissionController({
         // stays greyed even if the redirect is suppressed, because the
         // destinations already have this submission.
         state.submitted = true;
+
+        // The kiosk stays on the page and shows the thank-you blocks; the
+        // redirect is the fallback for a non-kiosk deployment.
+        if (thankyou?.isEnabled()) {
+          thankyou.show();
+
+          return sendResult;
+        }
 
         const url = this.redirectAfter(sendResult);
 

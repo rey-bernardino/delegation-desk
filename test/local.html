@@ -140,6 +140,26 @@
         background: #0f0f10;
         color: #f4f4f5;
       }
+
+      [block^="thankyou-"] {
+        display: none;
+      }
+
+      .decor_timer-background {
+        width: 100%;
+        height: 3px;
+        background-color: rgba(250, 248, 243, 0.15);
+        border-radius: 999px;
+        position: relative;
+        margin-top: 16px;
+      }
+
+      .decor_timer-progress {
+        background-color: rgba(255, 255, 255, 0.45);
+        width: 50%;
+        height: 100%;
+        position: absolute;
+      }
     </style>
 
     <link rel="stylesheet" href="../webflow/optin-checkbox.css" />
@@ -274,6 +294,22 @@
 
       <div form-block="submit">
         <button class="option" cmd="submit">Submit</button>
+      </div>
+    </div>
+
+
+    <!-- Mirrors the live page: three thank-you blocks, the Reset button inside
+         the timer block, and the countdown bar as a 50%-wide div in a track. -->
+    <div block="thankyou-logo">It's with an Athena EA now.</div>
+
+    <div block="thankyou-body">
+      <p>Here's what happens next.</p>
+    </div>
+
+    <div block="thankyou-timer">
+      <button class="option" cmd="reset">Reset</button>
+      <div class="decor_timer-background light-gray">
+        <div class="decor_timer-progress"></div>
       </div>
     </div>
 

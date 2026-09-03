@@ -10,6 +10,7 @@ export function bindEvents({
   selection,
   validation,
   submission,
+  thankyou,
   lenis,
 }) {
   const fieldSelector = config.fieldSelector || ".d-field";
@@ -41,6 +42,12 @@ export function bindEvents({
     }
 
     const cmd = cmdTrigger.getAttribute("cmd");
+
+    if (cmd === "reset") {
+      event.preventDefault();
+      thankyou?.reset();
+      return;
+    }
 
     if (cmd === "back") {
       event.preventDefault();

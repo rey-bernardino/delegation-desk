@@ -178,6 +178,46 @@ export function createWebflowFormService({ config }) {
       });
     },
 
+    // Webflow hides the form and reveals .w-form-done after a submission, and
+    // it never puts them back. On a page that submits more than once — a kiosk
+    // resetting between people — the next submit would have nothing to submit,
+    // and the failure is silent.
+    restore() {
+      const form = getForm();
+
+      if (!form) {
+        return false;
+      }
+
+      const wrapper = form.closest(".w-form") || form.parentElement;
+
+      // Clearing the inline display Webflow set, rather than forcing a value,
+      // hands the element back to whatever the stylesheet says.
+      form.style.display = "";
+
+      wrapper?.querySelectorAll(".w-form-done, .w-form-fail").forEach(
+        (element) => {
+          element.style.display = "none";
+        }
+      );
+
+      // Blank the mapped fields so a half-filled form can't be resubmitted
+      // with stale values if something goes wrong mid-flow.
+      Object.values(fieldMap).forEach((fieldName) => {
+        if (honeypotFields.includes(fieldName)) {
+          return;
+        }
+
+        const field = form.querySelector(`[name="${fieldName}"]`);
+
+        if (field) {
+          field.value = "";
+        }
+      });
+
+      return true;
+    },
+
     fillAndSubmit(summary) {
       const written = this.fill(summary);
 

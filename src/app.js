@@ -15,6 +15,7 @@ import { createPayloadService } from "./features/payload.service.js";
 import { createSubmissionController } from "./features/submission.controller.js";
 import { createRedirectService } from "./features/redirect.service.js";
 import { createSelectionController } from "./features/selection.controller.js";
+import { createThankyouController } from "./features/thankyou.controller.js";
 import { bindEvents } from "./core/events.js";
 
 const dom = createDom();
@@ -55,6 +56,31 @@ const redirect = createRedirectService({
   config: QUIZ_CONFIG,
 });
 
+// Order matters below: selection has no submission or thank-you dependency,
+// so it is built first, then the thank-you controller that drives the kiosk
+// loop off it, then submission, which hands over to thank-you on success.
+const selection = createSelectionController({
+  config: QUIZ_CONFIG,
+  dom,
+  state,
+  animations,
+  fields,
+  validation,
+});
+
+const thankyou = createThankyouController({
+  config: QUIZ_CONFIG,
+  dom,
+  state,
+  animations,
+  fields,
+  validation,
+  selection,
+  submitButton,
+  webflowForm,
+  lenis,
+});
+
 const submission = createSubmissionController({
   config: QUIZ_CONFIG,
   state,
@@ -64,16 +90,8 @@ const submission = createSubmissionController({
   submitButton,
   webflowForm,
   redirect,
+  thankyou,
   lenis,
-});
-
-const selection = createSelectionController({
-  config: QUIZ_CONFIG,
-  dom,
-  state,
-  animations,
-  fields,
-  validation,
 });
 
 // Runs at module evaluation, not on DOMContentLoaded — blocks have to be hidden
@@ -93,6 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selection,
         validation,
         submission,
+        thankyou,
         lenis,
       });
 
@@ -124,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     redirect,
     submission,
     selection,
+    thankyou,
     start,
 
     buildSubmissionPayload: (variant) =>
