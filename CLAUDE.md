@@ -306,11 +306,24 @@ users who are hardest to reproduce. Carried over from athena-form's `buildContex
 Field values are likewise always strings — `valueOf()` guarantees it, and the mapping coerces
 `?? ""` — because a null value is rejected the same way a null hutk is.
 
-`legalConsentOptions` is built only when `config.hubspot.legalConsent.enabled` is true, and is
-**off** by default: a HubSpot form with GDPR consent options enabled rejects a submission that omits
-it, and a form without them rejects one that includes it, so the correct setting depends on the form
-and isn't guessable. The consent `text` is read from the opt-in checkbox's label rather than
-hardcoded, so it always matches what the user actually ticked. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
+`legalConsentOptions` is **on** (`config.hubspot.legalConsent.enabled`). A HubSpot form with GDPR
+consent options enabled rejects a submission that omits it — and a form without them rejects one
+that includes it, so if submissions start failing with a consent-related error, this flag is the
+first thing to check.
+
+```json
+{ "consent": { "consentToProcess": true, "text": "I agree to receive emails from Athena.", "communications": [] } }
+```
+
+The `text` is read from the opt-in checkbox's label at build time rather than hardcoded, so it
+always matches what the user actually ticked. **HubSpot stores it as the record of what was agreed
+to, so that label's copy is a legal artefact, not just UI text** — changing it changes the consent
+record for every submission after the change. `fallbackText` covers a missing or blank label so the
+record is never empty; the label is trimmed before falling back, or whitespace-only copy would slip
+through as empty consent text.
+
+If the form uses subscription types rather than a plain process consent, `communications` takes
+`[{ value: true, subscriptionTypeId: …, text: … }]`. `submission.controller.js` has `postToHubspot()` ready, mirroring athena's
 `submitForm()` error typing, but nothing calls it while submission is disabled.
 
 ### The summary payload

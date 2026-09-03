@@ -171,10 +171,14 @@ export function createPayloadService({ config, dom, state }) {
         ?.closest(wrapperSelector)
         ?.querySelector(labelSelector);
 
+      // Trim before falling back, or a whitespace-only label produces blank
+      // consent text — HubSpot would store an empty record of what was agreed.
+      const labelText = (label?.textContent || "").trim();
+
       return {
         consent: {
           consentToProcess: true,
-          text: (label?.textContent || legal.fallbackText || "").trim(),
+          text: labelText || legal.fallbackText || "",
           communications: legal.communications || [],
         },
       };

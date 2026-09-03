@@ -72,12 +72,17 @@ export const QUIZ_CONFIG = {
     // form with consent options enabled rejects a submission that omits this,
     // and a form without them rejects one that includes it.
     legalConsent: {
-      enabled: false,
+      enabled: true,
 
       // Consent text is read from this field's label so it always matches
-      // what the user actually ticked.
+      // what the user actually ticked. HubSpot stores it as the record of
+      // what was agreed to, so the label copy is a legal artefact, not just
+      // UI text.
       optinFieldName: "optin_email",
-      fallbackText: "",
+
+      // Used only if the label is missing or empty, so the consent record is
+      // never blank.
+      fallbackText: "I agree to receive email from Athena.",
 
       // Subscription type ids, e.g.
       // [{ value: true, subscriptionTypeId: 12345, text: "..." }]
