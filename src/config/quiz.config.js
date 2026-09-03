@@ -27,9 +27,10 @@ export const QUIZ_CONFIG = {
     fieldWrapper: ".d-field-container",
     invalidClass: "invalid",
 
-    // Blocks whose fields are never required. Consent has to be freely given,
-    // so a mandatory email opt-in would defeat its own purpose.
-    optionalFormBlocks: ["optin"],
+    // Blocks whose fields are never required. Empty — the opt-in is required
+    // by decision, so nothing is currently exempt. The mechanism stays for
+    // when something genuinely optional is added.
+    optionalFormBlocks: [],
   },
 
   payload: {
