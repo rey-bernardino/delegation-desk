@@ -52,7 +52,8 @@ debugging.
 - `src/features/` — `selection.controller` (intro ↔ variant transitions), `fields.service`
   (clearing `.d-field` inputs), `validation.service`, `payload.service` (builds what gets sent),
   `submission.controller` (decides what happens on submit).
-- `src/integrations/` — `lenis.service` (smooth-scroll refresh).
+- `src/integrations/` — `lenis.service` (smooth-scroll refresh), `webflow-form.service` (fills and
+  submits the hidden Webflow form).
 - `src/ui/` — `animations` (CSS transitions).
 
 `animations` operates on **elements**, never names — resolving a name to an element is `dom`'s job,
@@ -376,6 +377,28 @@ included in `answers`. Labels come from `.d-field-label` inside the field's wrap
 the Webflow page. Two things it has to undo: `.d-field { width: 100% }`, which stretches the native
 box across the row, and the generic `.d-field-container.invalid input` rule, which adds an error
 icon and 35px of right padding that wreck a 22px box.
+
+## The hidden Webflow form
+
+`#wf-form-Delegation-Desk` is a hidden Webflow form, the source of record for the Google Sheets
+pipeline: Apps Script reads it back through the Webflow Forms API. Its fields mirror the summary
+payload — `category`, `categoryLabel`, `submittedAt`, `contact`, `fields`, `labels` — with the
+object-valued ones JSON-stringified. `config.webflowForm.fieldMap` is the mapping.
+
+**Submit by clicking the form's own submit control**, never `form.submit()`. Webflow binds its
+handler to the control, and only a submission that goes through that handler is stored — calling
+`form.submit()` records nothing. Carried over from athena-form's `error-logger.service.js`.
+
+**`cc-num` is Webflow's honeypot.** Never write to it: a filled honeypot makes Webflow discard the
+submission silently, with no error anywhere.
+
+Two known gaps, both on the Webflow side:
+
+- `fields` and `labels` are `maxlength="256"`, but real values are 562 and 570 characters for
+  travel with short answers, and ~3KB with long ones. `maxlength` does not truncate a value set from
+  script, so the browser sends it in full, but Webflow may still cut it server-side. The service
+  logs a warning whenever a value exceeds a field's `maxlength`.
+- The form has no field for `v`, so the summary's schema version is not recorded.
 
 ## Milestones
 

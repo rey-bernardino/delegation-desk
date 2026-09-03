@@ -13,6 +13,7 @@ export function createSubmissionController({
   payload,
   fields,
   submitButton,
+  webflowForm,
 }) {
   const settings = config.submission || {};
   const categoryKey = config.payload?.categoryKey || "category";
@@ -107,6 +108,40 @@ export function createSubmissionController({
       return payloads;
     },
 
+    // Fills and submits the hidden Webflow form. Fire-and-forget: Webflow's
+    // handler is asynchronous and gives nothing back to await.
+    submitToWebflow(payloads) {
+      if (!webflowForm?.isPresent()) {
+        console.warn("Delegation Desk: hidden Webflow form not on the page");
+        return false;
+      }
+
+      return webflowForm.fillAndSubmit(payloads.summary);
+    },
+
+    // Sends to whichever destinations are switched on. HubSpot is awaited
+    // because it reports failure; Webflow is not, because it cannot.
+    async send(payloads) {
+      const destinations = settings.destinations || {};
+      const result = { ok: true, submitted: true, payloads, sent: {} };
+
+      if (destinations.webflow !== false) {
+        result.sent.webflow = this.submitToWebflow(payloads);
+      }
+
+      if (destinations.hubspot !== false) {
+        try {
+          result.sent.hubspot = await this.postToHubspot(payloads.hubspotApi);
+        } catch (error) {
+          result.ok = false;
+          result.error = error;
+          console.error("Delegation Desk: HubSpot submission failed", error);
+        }
+      }
+
+      return result;
+    },
+
     // Mirrors athena-form's hubspot.service.js submitForm(). Not called while
     // submission.enabled is false, and inert until portalId/formId are set.
     async postToHubspot(apiPayload) {
@@ -195,8 +230,7 @@ export function createSubmissionController({
         return { ok: true, submitted: false, payloads };
       }
 
-      // Posting to Webflow + HubSpot goes here.
-      return { ok: true, submitted: false, payloads };
+      return this.send(payloads);
     },
   };
 }

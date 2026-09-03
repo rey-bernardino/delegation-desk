@@ -6,6 +6,7 @@ import { QUIZ_CONFIG } from "./config/quiz.config.js";
 import { state } from "./core/state.js";
 import { createDom, SELECTORS } from "./core/dom.js";
 import { createLenisService } from "./integrations/lenis.service.js";
+import { createWebflowFormService } from "./integrations/webflow-form.service.js";
 import { createAnimations } from "./ui/animations.js";
 import { createSubmitButton } from "./ui/submit-button.js";
 import { createFieldsService } from "./features/fields.service.js";
@@ -18,6 +19,10 @@ import { bindEvents } from "./core/events.js";
 const dom = createDom();
 
 const lenis = createLenisService();
+
+const webflowForm = createWebflowFormService({
+  config: QUIZ_CONFIG,
+});
 
 const animations = createAnimations({
   config: QUIZ_CONFIG,
@@ -52,6 +57,7 @@ const submission = createSubmissionController({
   payload,
   fields,
   submitButton,
+  webflowForm,
 });
 
 const selection = createSelectionController({
@@ -102,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state,
     dom,
     lenis,
+    webflowForm,
     animations,
     submitButton,
     fields,

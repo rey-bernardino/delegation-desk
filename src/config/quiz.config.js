@@ -90,6 +90,27 @@ export const QUIZ_CONFIG = {
     },
   },
 
+  // The hidden Webflow form that records each submission. It is the source
+  // the Google Sheets Apps Script reads, via the Webflow Forms API.
+  webflowForm: {
+    selector: "#wf-form-Delegation-Desk",
+
+    // summary payload key -> Webflow field name. Objects are JSON-stringified.
+    // `v` has no field on the form, so the schema version is not recorded.
+    fieldMap: {
+      category: "category",
+      categoryLabel: "categoryLabel",
+      submittedAt: "submittedAt",
+      contact: "contact",
+      fields: "fields",
+      labels: "labels",
+    },
+
+    // Webflow's spam trap. Never write to it — a filled honeypot makes Webflow
+    // discard the submission without an error.
+    honeypotFields: ["cc-num"],
+  },
+
   submitButton: {
     selector: '[cmd="submit"]',
 
@@ -104,8 +125,14 @@ export const QUIZ_CONFIG = {
 
   submission: {
     // Nothing is posted while this is false — the submit click only builds and
-    // stores the payloads. Flip it when the destination is decided.
+    // stores the payloads.
     enabled: false,
+
+    // Which destinations a live submit goes to, once enabled.
+    destinations: {
+      webflow: true,
+      hubspot: true,
+    },
 
     // Print both payloads to the console on every submit click.
     logPayloads: true,

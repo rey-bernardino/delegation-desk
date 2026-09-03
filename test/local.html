@@ -276,5 +276,29 @@
         <button class="option" cmd="submit">Submit</button>
       </div>
     </div>
+
+    <!-- Mirrors the hidden Webflow form on the live page, including its
+         honeypot and maxlength=256 fields. The submit handler preventDefaults
+         so the harness doesn't navigate. -->
+    <div class="w-form" style="display: none">
+      <form id="wf-form-Delegation-Desk" name="wf-form-Delegation-Desk" data-name="Delegation Desk" method="get">
+        <input id="cc-num" name="cc-num" type="text" autocomplete="off" tabindex="-1" aria-hidden="true" />
+        <input class="w-input" maxlength="256" name="contact" type="text" id="contact" />
+        <input class="w-input" maxlength="256" name="category" type="text" id="category" />
+        <input class="w-input" maxlength="256" name="categoryLabel" type="text" id="categoryLabel" />
+        <input class="w-input" maxlength="256" name="fields" type="text" id="fields" />
+        <input class="w-input" maxlength="256" name="labels" type="text" id="labels" />
+        <input class="w-input" maxlength="256" name="submittedAt" type="text" id="submittedAt" />
+        <input type="submit" class="w-button" value="Submit" />
+      </form>
+    </div>
+
+    <script>
+      window.__wfSubmits = [];
+      document.getElementById("wf-form-Delegation-Desk").addEventListener("submit", (e) => {
+        e.preventDefault();
+        window.__wfSubmits.push(Object.fromEntries(new FormData(e.target).entries()));
+      });
+    </script>
   </body>
 </html>
