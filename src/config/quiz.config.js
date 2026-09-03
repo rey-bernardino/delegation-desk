@@ -96,8 +96,8 @@ export const QUIZ_CONFIG = {
     selector: "#wf-form-Delegation-Desk",
 
     // summary payload key -> Webflow field name. Objects are JSON-stringified.
-    // `v` has no field on the form, so the schema version is not recorded.
     fieldMap: {
+      v: "v",
       category: "category",
       categoryLabel: "categoryLabel",
       submittedAt: "submittedAt",
@@ -124,9 +124,9 @@ export const QUIZ_CONFIG = {
   },
 
   submission: {
-    // Nothing is posted while this is false — the submit click only builds and
-    // stores the payloads.
-    enabled: false,
+    // Master switch. Live: a valid submit posts to every destination below
+    // that is explicitly true.
+    enabled: true,
 
     // Which destinations a live submit goes to, once enabled. Both must be
     // explicitly true — anything else is off.

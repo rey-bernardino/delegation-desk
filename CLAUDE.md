@@ -253,7 +253,7 @@ which field is missing.
 
 ## Submission
 
-**Nothing is posted.** `config.submission.enabled` is the master switch and is `false`. Under it,
+`config.submission.enabled` is the master switch and is **on**. Under it,
 `config.submission.destinations` gates each destination and **each must be explicitly `true`** — a
 missing or misspelled flag means off, so a typo can't quietly start posting somewhere:
 
@@ -262,10 +262,8 @@ missing or misspelled flag means off, so a typo can't quietly start posting some
 | `googleSheets` | submits the hidden Webflow form, which Apps Script reads back into the sheet | `true` |
 | `hubspot` | POSTs the Forms v3 body | `false` by decision |
 
-`config.submission.enabled` is `false` pending an internal decision on the
-destination. A submit click validates, builds both payloads, stores them on `state.lastPayloads`,
-logs them, and stops the button's own action. When the decision lands,
-`submission.controller.js` is the only file that needs to change.
+A submit click validates, builds every payload, stores them on `state.lastPayloads`, logs them, and
+sends to each enabled destination.
 
 Both payloads are printed to the console on every submit click, grouped under
 `Delegation Desk — submit payloads (<category>, not sent)`: the quiz payload, its `answers` as a
@@ -401,13 +399,22 @@ handler to the control, and only a submission that goes through that handler is 
 **`cc-num` is Webflow's honeypot.** Never write to it: a filled honeypot makes Webflow discard the
 submission silently, with no error anywhere.
 
-Two known gaps, both on the Webflow side:
+`contact`, `fields` and `labels` are textareas capped at 5000 characters; `v`, `category`,
+`categoryLabel` and `submittedAt` are text inputs at 256. That covers a travel submission with long
+answers (~3KB) but not a pathological one (~9KB) — the service warns whenever a value exceeds its
+field's `maxlength`, so truncation shows up in the console rather than silently downstream.
 
-- `fields` and `labels` are `maxlength="256"`, but real values are 562 and 570 characters for
-  travel with short answers, and ~3KB with long ones. `maxlength` does not truncate a value set from
-  script, so the browser sends it in full, but Webflow may still cut it server-side. The service
-  logs a warning whenever a value exceeds a field's `maxlength`.
-- The form has no field for `v`, so the summary's schema version is not recorded.
+## Google Sheets pipeline
+
+`appscript/` holds the Apps Script, which is **not** bundled or deployed by this repo — it is pasted
+into a script bound to the spreadsheet.
+
+`webflow-forms-debug.gs` lists the sites and forms the API token can see, so the form is wired by
+id rather than by a name that can be edited in the Designer.
+
+The token lives in Script Properties as `WEBFLOW_API_TOKEN` — never in the repo, and never in a
+message. The site id is `6513fda5217cc80d379e2473`, readable from the live page's
+`<html data-wf-site>`.
 
 ## Milestones
 
