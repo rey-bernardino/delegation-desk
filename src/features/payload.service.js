@@ -18,6 +18,7 @@ export function createPayloadService({ config, dom, state }) {
   const wrapperSelector =
     config.validation?.fieldWrapper || ".d-field-container";
   const infoBlockName = settings.infoFormBlock || "info";
+  const contactBlockNames = settings.contactFormBlocks || [infoBlockName];
   const categoryKey = settings.categoryKey || "category";
   const fieldSelector = config.fieldSelector || ".d-field";
 
@@ -43,11 +44,11 @@ export function createPayloadService({ config, dom, state }) {
     );
   }
 
-  // Category form blocks are the scoped ones minus info. Blocks with no fields
-  // (submit) fall out on their own.
+  // Category form blocks are the scoped ones minus the contact/consent blocks.
+  // Blocks with no fields (submit) fall out on their own.
   function categoryBlockNames(variant) {
     return formBlockNamesFor(config, variant).filter(
-      (name) => name !== infoBlockName
+      (name) => !contactBlockNames.includes(name)
     );
   }
 
@@ -78,15 +79,15 @@ export function createPayloadService({ config, dom, state }) {
       return String(field.value ?? "").trim();
     },
 
-    // Visible contact fields only — what a human filled in.
+    // Visible contact and consent fields — what a human filled in or ticked.
     getInfoFields() {
-      return fieldsIn(infoBlockName);
+      return contactBlockNames.flatMap(fieldsIn);
     },
 
-    // Everything HubSpot should receive: the visible contact fields plus the
-    // hidden attribution inputs sitting alongside them.
+    // Everything HubSpot should receive: the visible contact and consent
+    // fields plus the hidden attribution inputs sitting alongside them.
     getHubspotFields() {
-      return allNamedFieldsIn(infoBlockName);
+      return contactBlockNames.flatMap(allNamedFieldsIn);
     },
 
     getCategoryFields(variant = state.selectedVariant) {

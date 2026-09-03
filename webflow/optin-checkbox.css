@@ -1,0 +1,106 @@
+/* Delegation Desk — opt-in checkbox
+ *
+ * Paste inside a <style> tag in the Webflow page's custom code (before </body>
+ * is fine), or into the same embed that holds the opt-in markup.
+ *
+ * Targets the markup as authored:
+ *   .d-field-container.checkbox
+ *     └ .d-checkbox
+ *         ├ input.d-field.checkbox[type=checkbox]
+ *         └ label.d-field-label
+ *     └ span.errorMessage
+ *
+ * Colours are the site's own: deep forest #062812, golden tan #dcba79,
+ * field border rgba(38, 67, 48, .455).
+ */
+
+/* The container is a row, not a stacked field. */
+.d-field-container.checkbox {
+  margin-top: 4px;
+}
+
+.d-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+/* .d-field sets width:100%, which stretches the native box across the row.
+   Undo that before restyling. */
+.d-field.checkbox[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(38, 67, 48, 0.455);
+  border-radius: 6px;
+  background-color: #fff;
+  background-image: none;
+  cursor: pointer;
+  position: relative;
+  top: 1px; /* optically aligns with the first line of label text */
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.d-field.checkbox[type="checkbox"]:hover {
+  border-color: #062812;
+}
+
+/* Checked: deep forest fill with a white tick drawn in CSS, so there is no
+   image to load and it stays crisp at any zoom. */
+.d-field.checkbox[type="checkbox"]:checked {
+  background-color: #062812;
+  border-color: #062812;
+}
+
+.d-field.checkbox[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Keyboard focus only — no ring on mouse clicks. */
+.d-field.checkbox[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(220, 186, 121, 0.55);
+  border-color: #dcba79;
+}
+
+.d-field-container.checkbox .d-field-label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #062812;
+  user-select: none;
+}
+
+/* The generic invalid rule adds an error icon and 35px of right padding to
+   inputs, which wrecks a 22px box. Neutralise it and tint the box instead. */
+.d-field-container.checkbox.invalid input {
+  padding-right: 0;
+  background-image: none;
+}
+
+.d-field-container.checkbox.invalid .d-field.checkbox[type="checkbox"] {
+  border-color: rgb(245, 82, 82);
+}
+
+.d-field-container.checkbox .errorMessage {
+  margin-left: 34px; /* line up under the label, not the box */
+}

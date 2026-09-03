@@ -71,6 +71,7 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | `[block-display="grid"]` | Per-element display override, highest precedence. See **Restoring display** below. |
 | `.d-field` (`config.fieldSelector`) | An input the quiz owns. Cleared on a category switch unless its `[form-block]` is in `config.preserveFormBlocks`. |
 | `.d-field-container` (`config.validation.fieldWrapper`) | Wrapper that carries the `invalid` class. Webflow styles the red border and reveals `.errorMessage` off it. |
+| `[form-block=optin]` | Email consent checkbox. Optional, preserved across category switches, sent to HubSpot, never a category answer. |
 | `data-dd-touched` | Set once the user has left a field. Untouched fields validate but stay unstyled. |
 
 ### Hidden fields
@@ -171,7 +172,7 @@ work:
 the selection controller feeds those to `validation.resetFields` so red borders and touched flags
 don't carry into the new category.
 
-`config.preserveFormBlocks` (`["info"]`) is exempt from all of that: `[form-block=info]` — name,
+`config.preserveFormBlocks` (`["info", "optin"]`) is exempt from all of that: `[form-block=info]` — name,
 email, company — is shown for every category, so its answers are never category-specific and must
 survive a switch.
 
@@ -196,6 +197,13 @@ Anything added later that shows, hides, or resizes a block must call `lenis?.sch
 `lenis.scrollTo()` is used instead of `scrollIntoView` when focusing the first invalid field —
 native smooth scrolling fights Lenis's hijacked scroll.
 
+### Contact vs category blocks
+
+`config.payload.contactFormBlocks` (`["info", "optin"]`) marks the blocks holding contact and
+consent data. Their fields go to **both** destinations and are **never** counted as category
+answers, so `answers` / `summary.fields` stay purely the category's own questions while
+`optin_email` lands in `summary.contact` and the HubSpot payload.
+
 ## Validation
 
 Every field in the **current** category is required. Tactics follow athena-form's
@@ -205,6 +213,13 @@ Every field in the **current** category is required. Tactics follow athena-form'
 `state.selectedVariant` and collects `.d-field` inside those blocks only. The other four categories
 sit in the DOM with empty inputs and must never count against the user — never validate by querying
 `.d-field` globally.
+
+`config.validation.optionalFormBlocks` (`["optin"]`) exempts a block from being required. Consent
+has to be freely given, so a mandatory email opt-in would defeat its own purpose — and it would also
+make the submit button permanently grey for anyone who declines.
+
+Checkboxes and radios validate on `.checked`, never `.value` — a checkbox always carries a `value`
+attribute, so reading `.value` would make an unticked box look filled in.
 
 Styling only appears once a field carries `data-dd-touched`, set on `focusout`. This is athena-form's
 `solo=""` convention inverted: there, untouched fields carry the attribute; here, touched ones do.
@@ -333,6 +348,13 @@ no validation, no submission, no DOM mutation.
 `[form-block=info]` is contact detail, not an answer — it goes to both destinations and is never
 included in `answers`. Labels come from `.d-field-label` inside the field's wrapper.
 
+## Webflow-side CSS
+
+`webflow/optin-checkbox.css` styles the opt-in checkbox and is **not bundled** — it is pasted into
+the Webflow page. Two things it has to undo: `.d-field { width: 100% }`, which stretches the native
+box across the row, and the generic `.d-field-container.invalid input` rule, which adds an error
+icon and 35px of right padding that wreck a 22px box.
+
 ## Milestones
 
 - **1 (done)** — fade in `[block=intro-logo]` and `[block=select]` on page load.
@@ -345,6 +367,9 @@ included in `answers`. Labels come from `.d-field-label` inside the field's wrap
 - **6 (done)** — submit builds both payloads without sending anything.
 - **7 (done)** — Lenis scroll limit refreshed on every height change.
 - **8 (done)** — hidden choice field, HubSpot Forms v3 payload shape, `buildSubmissionPayload()`.
+- **9 (done)** — summary JSON into `event_allin_delegationdesk_summary`, shaped for Sheets.
+- **10 (done)** — submit button greys out until the category is complete.
+- **11 (done)** — `[form-block=optin]` in the flow, optional, routed to HubSpot.
 - **7 (done)** — Lenis scroll limit refreshed on every height change.
 - Next — decide the destination, then post to Webflow + HubSpot.
 

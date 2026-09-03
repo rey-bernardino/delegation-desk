@@ -56,6 +56,15 @@ export function createValidationService({ config, dom, state, lenis }) {
     wrapperOf(field)?.classList.remove(invalidClass);
   }
 
+  // Fields in an optional block are never required.
+  function isOptionalField(field) {
+    const holder = field.closest("[form-block]");
+
+    return (rules.optionalFormBlocks || []).includes(
+      holder?.getAttribute("form-block")
+    );
+  }
+
   function isEmailField(field) {
     return (
       String(field.type || "").toLowerCase() === "email" ||
@@ -89,8 +98,22 @@ export function createValidationService({ config, dom, state, lenis }) {
       field.setAttribute(TOUCHED_ATTR, "");
     },
 
+    isOptionalField,
+
     // Value check only — no styling, no scope check.
     isFieldValid(field) {
+      if (isOptionalField(field)) {
+        return true;
+      }
+
+      const type = String(field.type || "").toLowerCase();
+
+      // A checkbox always has a value attribute, so reading .value would make
+      // an unticked box look filled in.
+      if (type === "checkbox" || type === "radio") {
+        return field.checked === true;
+      }
+
       const value = String(field.value || "").trim();
 
       if (!value) {

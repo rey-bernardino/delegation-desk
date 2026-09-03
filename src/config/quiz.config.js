@@ -19,13 +19,17 @@ export const QUIZ_CONFIG = {
 
   // Form blocks whose inputs survive a category switch. [form-block=info] is
   // shown for every category, so its answers are never category-specific.
-  preserveFormBlocks: ["info"],
+  preserveFormBlocks: ["info", "optin"],
 
   validation: {
     // Wrapper that carries the invalid class. Webflow styles the red border
     // and reveals .errorMessage off it.
     fieldWrapper: ".d-field-container",
     invalidClass: "invalid",
+
+    // Blocks whose fields are never required. Consent has to be freely given,
+    // so a mandatory email opt-in would defeat its own purpose.
+    optionalFormBlocks: ["optin"],
   },
 
   payload: {
@@ -35,6 +39,11 @@ export const QUIZ_CONFIG = {
     // The block whose fields are contact details rather than answers. Sent to
     // both destinations, and never treated as category answers.
     infoFormBlock: "info",
+
+    // Blocks holding contact or consent data rather than category answers.
+    // These go to both destinations and never count as answers. optin belongs
+    // here, not in the category: it is an email consent, and HubSpot needs it.
+    contactFormBlocks: ["info", "optin"],
 
     // Key the selected category is written to in the quiz payload.
     categoryKey: "category",
@@ -126,7 +135,10 @@ export const QUIZ_CONFIG = {
 
     // [form-block] elements faded in with the form, continuing the same
     // stagger sequence as enterBlocks.
-    enterFormBlocks: ["{variant}", "info", "submit"],
+    // Order here only decides which blocks appear — enterElementsFor sorts by
+    // document position, so optin lands after the category block because that
+    // is where it sits in the Webflow markup.
+    enterFormBlocks: ["{variant}", "info", "optin", "submit"],
 
     // Delay between each entering element, in ms.
     stagger: 90,

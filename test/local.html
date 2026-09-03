@@ -141,6 +141,8 @@
         color: #f4f4f5;
       }
     </style>
+
+    <link rel="stylesheet" href="../webflow/optin-checkbox.css" />
   </head>
 
   <body>
@@ -254,6 +256,16 @@
           <div class="d-field-container">
             <label class="d-field-label">offsite-howmany</label>
             <input type="text" name="offsite-howmany" class="d-field" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+        </div>
+
+        <div form-block="optin">
+          <div class="d-field-container checkbox">
+            <div class="d-checkbox">
+              <input class="d-field checkbox" type="checkbox" id="optin_email" name="optin_email" value="yes" />
+              <label class="d-field-label" for="optin_email">Email me occasional Athena updates.</label>
+            </div>
             <span class="errorMessage">Please complete this required field.</span>
           </div>
         </div>
