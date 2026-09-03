@@ -528,6 +528,17 @@ providing security — anyone who can open the script can read the property. Bot
 only in dev — clearing headers as well as rows matters while the question set is still changing,
 since a stale column would otherwise linger after a field is renamed.
 
+**Column A of every category sheet is the hand-filled `Output` column, and the ingest never writes
+to it.** `RESERVED_HEADERS` lists the headers it must not touch; the write is narrowed to the block
+of columns the ingest actually owns, so no blank lands on a filled cell and no formula in that
+column is overwritten. Appending a new question writes only the new header cell rather than
+rewriting the header row, for the same reason. A reserved column sitting *between* the ingest's own
+columns can't be skipped by a single write, so that case is refused with an explanatory error rather
+than clobbered — keep `Output` at column A.
+
+A fresh or just-reset category sheet is rebuilt with `Output` as column A (`CATEGORY_LEADING_HEADERS`),
+so a reset restores the layout — though whatever was typed into it is gone.
+
 Rows are queued and written per sheet in one `setValues` call per run, not `appendRow` per
 submission — `appendRow` is a round trip each time, which is slow when a backlog lands, and
 queueing lets every row in a run share one header set.

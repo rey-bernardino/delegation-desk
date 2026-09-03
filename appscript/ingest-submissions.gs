@@ -29,7 +29,18 @@ var WF_API_BASE = "https://api.webflow.com/v2";
 var SHEET_SUBMISSIONS = "Submissions";
 var SHEET_LOGS = "Logs";
 
-// Fixed columns on a category sheet, before that category's answer columns.
+// Columns the ingest must never write to. They are filled in by hand after a
+// submission lands, so an ingest that rewrote them — even with a blank — would
+// destroy work. "Output" is column A on every category sheet.
+var RESERVED_HEADERS = ["Output"];
+
+// Reserved columns a fresh category sheet is created with, in this order and
+// ahead of the ingest's own columns. Only used when a sheet has no headers at
+// all, so a reset rebuilds the layout that was there before.
+var CATEGORY_LEADING_HEADERS = ["Output"];
+
+// Fixed columns on a category sheet, after the reserved ones and before that
+// category's answer columns.
 var CATEGORY_FIXED_HEADERS = [
   "Submitted at",
   "Submission ID",
@@ -234,7 +245,15 @@ function wfGetSheet_(name) {
   return SpreadsheetApp.getActive().getSheetByName(name);
 }
 
-function wfEnsureHeaders_(sheet, headers) {
+function wfIsCategorySheet_(name) {
+  return name !== SHEET_SUBMISSIONS && name !== SHEET_LOGS;
+}
+
+function wfIsReserved_(header) {
+  return RESERVED_HEADERS.indexOf(String(header).trim()) !== -1;
+}
+
+function wfEnsureHeaders_(sheet, headers, leadingHeaders) {
   var lastColumn = sheet.getLastColumn();
 
   var existing =
@@ -247,28 +266,36 @@ function wfEnsureHeaders_(sheet, headers) {
   });
 
   if (!hasHeaders) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    // Fresh or just-reset sheet: lay out the reserved columns first, so
+    // "Output" comes back as column A rather than being lost.
+    var initial = (leadingHeaders || []).concat(headers);
+
+    sheet.getRange(1, 1, 1, initial.length).setValues([initial]);
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
-    return headers.slice();
+    sheet.getRange(1, 1, 1, initial.length).setFontWeight("bold");
+
+    return initial;
   }
 
   // Append any header this submission needs but the sheet doesn't have yet, so
   // a new question doesn't need a manual column added.
-  var merged = existing.slice();
-
-  headers.forEach(function (header) {
-    if (merged.indexOf(header) === -1) {
-      merged.push(header);
-    }
+  var added = headers.filter(function (header) {
+    return existing.indexOf(header) === -1;
   });
 
-  if (merged.length > existing.length) {
-    sheet.getRange(1, 1, 1, merged.length).setValues([merged]);
-    sheet.getRange(1, 1, 1, merged.length).setFontWeight("bold");
+  if (!added.length) {
+    return existing.slice();
   }
 
-  return merged;
+  // Write only the new cells. Rewriting the whole row would touch the
+  // reserved columns — same value, but it would also restyle them, and there
+  // is no reason to write a cell someone else owns.
+  sheet
+    .getRange(1, existing.length + 1, 1, added.length)
+    .setValues([added])
+    .setFontWeight("bold");
+
+  return existing.concat(added);
 }
 
 /** Aligns a {header: value} object to the sheet's header order. */
@@ -333,14 +360,59 @@ function wfFlushPending_(pending, stats) {
     }
 
     try {
-      var headers = wfEnsureHeaders_(entry.sheet, entry.headers);
+      var leading = wfIsCategorySheet_(sheetName)
+        ? CATEGORY_LEADING_HEADERS
+        : [];
+
+      var headers = wfEnsureHeaders_(entry.sheet, entry.headers, leading);
+
+      // The block of columns the ingest owns, so reserved columns are left
+      // exactly as they are — no blank written over a hand-filled cell, and
+      // no formula in that column overwritten.
+      var ownedIndexes = [];
+
+      headers.forEach(function (header, index) {
+        if (!wfIsReserved_(header)) {
+          ownedIndexes.push(index);
+        }
+      });
+
+      if (!ownedIndexes.length) {
+        stats.errors.push("'" + sheetName + "': no writable columns");
+        return;
+      }
+
+      var firstOwned = Math.min.apply(null, ownedIndexes);
+      var lastOwned = Math.max.apply(null, ownedIndexes);
+
+      // A reserved column between the first and last owned one cannot be
+      // skipped by a single setValues, so say so rather than quietly
+      // clobbering it. Keeping reserved columns at the edges avoids this.
+      for (var i = firstOwned; i <= lastOwned; i++) {
+        if (wfIsReserved_(headers[i])) {
+          stats.errors.push(
+            "'" +
+              sheetName +
+              "': reserved column '" +
+              headers[i] +
+              "' sits inside the ingest's columns and would be overwritten — " +
+              "move it to column A. Nothing was written."
+          );
+          return;
+        }
+      }
 
       var rows = entry.rows.map(function (values) {
-        return wfRowFor_(headers, values);
+        return wfRowFor_(headers, values).slice(firstOwned, lastOwned + 1);
       });
 
       entry.sheet
-        .getRange(entry.sheet.getLastRow() + 1, 1, rows.length, headers.length)
+        .getRange(
+          entry.sheet.getLastRow() + 1,
+          firstOwned + 1,
+          rows.length,
+          lastOwned - firstOwned + 1
+        )
         .setValues(rows);
     } catch (error) {
       stats.errors.push("write to '" + sheetName + "': " + error.message);
@@ -846,6 +918,8 @@ function wfCheckResetPassword_() {
 /**
  * Destructive. Clears every managed sheet completely — headers included, so
  * the next ingest rebuilds them from whatever the payload looks like then.
+ * Category sheets get their reserved "Output" column back as column A, but
+ * anything that was typed into it is gone.
  * That matters in dev, where the question set is still changing and stale
  * columns would otherwise linger.
  *
