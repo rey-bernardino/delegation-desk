@@ -168,7 +168,9 @@ export function createThankyouController({
         stagger: config.intro?.stagger,
       });
 
-      // The form is empty again, so the button belongs greyed.
+      // The form is empty again, so the button belongs greyed — and back to
+      // its own label, in case a reset interrupted a submission.
+      submitButton?.setLoading(false);
       submitButton?.setEnabled(false);
 
       lenis?.scheduleRefresh();

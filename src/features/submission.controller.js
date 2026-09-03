@@ -353,8 +353,10 @@ export function createSubmissionController({
       state.submitting = true;
 
       // Greyed while in flight: the button shows something is happening and
-      // can't be clicked again.
+      // can't be clicked again. Greyed alone reads the same as "form
+      // incomplete", so the spinner is what says "working".
       submitButton?.setEnabled(false);
+      submitButton?.setLoading(true);
 
       let sendResult;
 
@@ -362,6 +364,10 @@ export function createSubmissionController({
         sendResult = await this.send(payloads);
       } finally {
         state.submitting = false;
+
+        // Cleared on every path, so no route out of here leaves a spinner
+        // running — including the thank-you fade and a failed submit.
+        submitButton?.setLoading(false);
       }
 
       if (sendResult.ok) {

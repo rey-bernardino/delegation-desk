@@ -246,6 +246,16 @@ be authored as a div where the property is inert. `ui/submit-button.js` injects 
 the same palette the rest of the site uses for disabled controls (`#d9d9d9` on `#b3b3b3`); authoring
 `[cmd="submit"].disabled` in Webflow overrides it.
 
+While a submission is in flight the button also gets `config.submitButton.loadingClass`
+(`loading`), its label swaps to `loadingText` ("Sending…"), and `aria-busy` is set. Greying alone
+reads identically to "form incomplete", so the spinner is what distinguishes *working* from
+*blocked* — and the wait is real now that HubSpot is posted to and Webflow is waited on.
+`ui/submit-button.js` injects a CSS-drawn spinner in the same palette as the disabled state;
+authoring `[cmd="submit"].loading` in Webflow overrides it, and the rotation is dropped under
+`prefers-reduced-motion`. The original label is stashed in `data-dd-label` rather than hardcoded, so
+the Webflow copy can change freely, and it is restored on **every** exit path — success, failure and
+reset — so no route out leaves a spinner running.
+
 `config.submitButton.blockClicks: false` leaves the greyed button clickable, in which case the click
 runs `validateAll({ reveal: true })` and surfaces every outstanding error at once. The tradeoff:
 inert is cleaner, but a user who never focuses a field sees a grey button with no explanation of

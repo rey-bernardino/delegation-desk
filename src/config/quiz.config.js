@@ -168,6 +168,14 @@ export const QUIZ_CONFIG = {
     // true: the greyed button is genuinely inert.
     // false: it stays clickable and a click reveals every outstanding error.
     blockClicks: true,
+
+    // Shown while a submission is in flight. Style
+    // [cmd="submit"].loading in Webflow to override the built-in spinner.
+    loadingClass: "loading",
+    loadingText: "Sending…",
+
+    // false: keep the button's own label and show only the spinner.
+    replaceText: true,
   },
 
   submission: {
