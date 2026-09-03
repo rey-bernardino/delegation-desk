@@ -412,6 +412,31 @@ into a script bound to the spreadsheet.
 `webflow-forms-debug.gs` lists the sites and forms the API token can see, so the form is wired by
 id rather than by a name that can be edited in the Designer.
 
+`ingest-submissions.gs` does the actual work. Entry points:
+
+| function | what it does |
+| --- | --- |
+| `ingestWebflowSubmissions()` | the run itself — what the trigger calls |
+| `syncNow()` | manual run, identical path so it can't behave differently from the trigger |
+| `debugFetchSubmissions()` | fetches without writing; dumps the raw shape and checks tab names |
+| `resetAllSheets()` | **dry run** — reports what a reset would delete |
+| `resetAllSheetsConfirmed()` | destructive — clears every managed sheet, headers included |
+| `setupIngestTrigger()` / `deleteIngestTriggers()` | the 5-minute schedule |
+
+`onOpen()` puts Sync now / Check connection / Reset in the spreadsheet's own menu bar.
+
+The reset is split in two on purpose: the easy-to-run name is the one that does nothing. Both live
+only in dev — clearing headers as well as rows matters while the question set is still changing,
+since a stale column would otherwise linger after a field is renamed.
+
+Rows are queued and written per sheet in one `setValues` call per run, not `appendRow` per
+submission — `appendRow` is a round trip each time, which is slow when a backlog lands, and
+queueing lets every row in a run share one header set.
+
+Dedupe reads the submission ids already in `Submissions` rather than keeping a cursor, so there is
+no stored position to drift, and deleting a row re-ingests it. A timestamp cursor would skip two
+submissions landing in the same second.
+
 The token lives in Script Properties as `WEBFLOW_API_TOKEN` — never in the repo, and never in a
 message. The site id is `6513fda5217cc80d379e2473`, readable from the live page's
 `<html data-wf-site>`.

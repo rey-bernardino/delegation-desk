@@ -163,7 +163,7 @@ function wfFetchAllSubmissions_() {
 
 /* -------------------------------------------------------------- parsing --- */
 
-function wfSafeJson_(value, fallback) {
+function wfSafeJson_(value, fallback, onError) {
   if (value === null || value === undefined || value === "") {
     return fallback;
   }
@@ -175,26 +175,53 @@ function wfSafeJson_(value, fallback) {
   try {
     return JSON.parse(value);
   } catch (error) {
+    // A truncated or malformed blob would otherwise land as empty columns with
+    // no explanation, which is the hardest kind of data loss to notice.
+    if (onError) {
+      onError(error);
+    }
+
     return fallback;
   }
+}
+
+/**
+ * ISO strings sort and filter as text in Sheets, which is useless for a date
+ * column. Hand back a real Date when it parses.
+ */
+function wfToDate_(value) {
+  if (!value) {
+    return "";
+  }
+
+  var parsed = new Date(value);
+
+  return isNaN(parsed.getTime()) ? value : parsed;
 }
 
 function wfParseSubmission_(submission) {
   var response =
     submission.formResponse || submission.data || submission.fields || {};
 
-  var contact = wfSafeJson_(response.contact, {});
+  var parseErrors = [];
+
+  function note(field) {
+    return function (error) {
+      parseErrors.push(field + " is not valid JSON (" + error.message + ")");
+    };
+  }
 
   return {
     id: submission.id,
-    dateSubmitted: submission.dateSubmitted || "",
+    dateSubmitted: wfToDate_(submission.dateSubmitted),
     v: response.v || "",
     category: response.category || "",
     categoryLabel: response.categoryLabel || "",
-    submittedAt: response.submittedAt || "",
-    contact: contact,
-    fields: wfSafeJson_(response.fields, {}),
-    labels: wfSafeJson_(response.labels, {}),
+    submittedAt: wfToDate_(response.submittedAt),
+    contact: wfSafeJson_(response.contact, {}, note("contact")),
+    fields: wfSafeJson_(response.fields, {}, note("fields")),
+    labels: wfSafeJson_(response.labels, {}, note("labels")),
+    parseErrors: parseErrors,
     // Kept so a malformed payload can be inspected rather than guessed at.
     raw: response,
   };
@@ -272,27 +299,74 @@ function wfExistingIds_(sheet) {
   return seen;
 }
 
-function wfAppendToSubmissions_(sheet, parsed) {
-  var headers = wfEnsureHeaders_(sheet, SUBMISSIONS_HEADERS);
+/**
+ * Rows are queued and written per sheet in one setValues call at the end of a
+ * run. appendRow is a round trip each time, which is slow enough to matter
+ * when a backlog lands, and queueing also lets every row in a run share one
+ * header set instead of re-reading it per submission.
+ */
+function wfQueueRow_(pending, sheetName, sheet, headers, values) {
+  var entry = pending[sheetName];
 
-  var values = {
-    "Submission ID": parsed.id,
-    "Submitted at": parsed.submittedAt,
-    "Received by Webflow": parsed.dateSubmitted,
-    "Schema v": parsed.v,
-    Category: parsed.category,
-    "Category label": parsed.categoryLabel,
-    "First name": parsed.contact.firstname || "",
-    "Last name": parsed.contact.lastname || "",
-    Email: parsed.contact.email || "",
-    Company: parsed.contact.company || "",
-    "Email opt-in": parsed.contact.optin_email || "",
-  };
+  if (!entry) {
+    entry = pending[sheetName] = { sheet: sheet, headers: [], rows: [] };
+  }
 
-  sheet.appendRow(wfRowFor_(headers, values));
+  headers.forEach(function (header) {
+    if (entry.headers.indexOf(header) === -1) {
+      entry.headers.push(header);
+    }
+  });
+
+  entry.rows.push(values);
+
+  return entry;
 }
 
-function wfAppendToCategory_(sheet, parsed) {
+function wfFlushPending_(pending, stats) {
+  Object.keys(pending).forEach(function (sheetName) {
+    var entry = pending[sheetName];
+
+    if (!entry.rows.length) {
+      return;
+    }
+
+    try {
+      var headers = wfEnsureHeaders_(entry.sheet, entry.headers);
+
+      var rows = entry.rows.map(function (values) {
+        return wfRowFor_(headers, values);
+      });
+
+      entry.sheet
+        .getRange(entry.sheet.getLastRow() + 1, 1, rows.length, headers.length)
+        .setValues(rows);
+    } catch (error) {
+      stats.errors.push("write to '" + sheetName + "': " + error.message);
+    }
+  });
+}
+
+function wfSubmissionsRow_(parsed) {
+  return {
+    headers: SUBMISSIONS_HEADERS,
+    values: {
+      "Submission ID": parsed.id,
+      "Submitted at": parsed.submittedAt,
+      "Received by Webflow": parsed.dateSubmitted,
+      "Schema v": parsed.v,
+      Category: parsed.category,
+      "Category label": parsed.categoryLabel,
+      "First name": parsed.contact.firstname || "",
+      "Last name": parsed.contact.lastname || "",
+      Email: parsed.contact.email || "",
+      Company: parsed.contact.company || "",
+      "Email opt-in": parsed.contact.optin_email || "",
+    },
+  };
+}
+
+function wfCategoryRow_(parsed) {
   // Column order follows the order of keys in `fields`, which follows the
   // Webflow markup order. Headers are the question text from `labels`, so a
   // sheet is readable without knowing the field names.
@@ -301,11 +375,6 @@ function wfAppendToCategory_(sheet, parsed) {
   var answerHeaders = keys.map(function (key) {
     return parsed.labels[key] || key;
   });
-
-  var headers = wfEnsureHeaders_(
-    sheet,
-    CATEGORY_FIXED_HEADERS.concat(answerHeaders)
-  );
 
   var values = {
     "Submitted at": parsed.submittedAt,
@@ -321,7 +390,10 @@ function wfAppendToCategory_(sheet, parsed) {
     values[answerHeaders[index]] = parsed.fields[key];
   });
 
-  sheet.appendRow(wfRowFor_(headers, values));
+  return {
+    headers: CATEGORY_FIXED_HEADERS.concat(answerHeaders),
+    values: values,
+  };
 }
 
 function wfWriteLog_(stats) {
@@ -394,6 +466,7 @@ function ingestWebflowSubmissions() {
     // The Submissions sheet is the record of what has been ingested, so there
     // is no separate cursor to drift out of sync.
     var seen = wfExistingIds_(submissionsSheet);
+    var pending = {};
 
     submissions.forEach(function (submission) {
       var parsed;
@@ -415,32 +488,51 @@ function ingestWebflowSubmissions() {
         return;
       }
 
-      try {
-        wfAppendToSubmissions_(submissionsSheet, parsed);
+      // Malformed JSON still gets ingested — a row with the contact and
+      // category is more useful than a silently dropped submission — but the
+      // run is flagged so it can be looked at.
+      parsed.parseErrors.forEach(function (message) {
+        stats.errors.push(parsed.id + ": " + message);
+      });
 
-        // Written first, so a failure on the category sheet can't cause the
-        // same submission to be ingested twice on the next run.
-        seen[parsed.id] = true;
+      var submissionsRow = wfSubmissionsRow_(parsed);
 
-        var categorySheet = parsed.categoryLabel
-          ? wfGetSheet_(parsed.categoryLabel)
-          : null;
+      wfQueueRow_(
+        pending,
+        SHEET_SUBMISSIONS,
+        submissionsSheet,
+        submissionsRow.headers,
+        submissionsRow.values
+      );
 
-        if (categorySheet) {
-          wfAppendToCategory_(categorySheet, parsed);
-        } else {
-          stats.missingSheet++;
-          stats.errors.push(
-            "no sheet named '" + parsed.categoryLabel + "' for " + parsed.id
-          );
-        }
+      seen[parsed.id] = true;
 
-        stats.added++;
-        stats.addedIds.push(parsed.id);
-      } catch (error) {
-        stats.errors.push("write " + parsed.id + ": " + error.message);
+      var categorySheet = parsed.categoryLabel
+        ? wfGetSheet_(parsed.categoryLabel)
+        : null;
+
+      if (categorySheet) {
+        var categoryRow = wfCategoryRow_(parsed);
+
+        wfQueueRow_(
+          pending,
+          parsed.categoryLabel,
+          categorySheet,
+          categoryRow.headers,
+          categoryRow.values
+        );
+      } else {
+        stats.missingSheet++;
+        stats.errors.push(
+          "no sheet named '" + parsed.categoryLabel + "' for " + parsed.id
+        );
       }
+
+      stats.added++;
+      stats.addedIds.push(parsed.id);
     });
+
+    wfFlushPending_(pending, stats);
   } catch (error) {
     stats.errors.push(error.message);
     Logger.log("Ingest failed: %s", error.message);
@@ -542,4 +634,145 @@ function deleteIngestTriggers() {
   });
 
   Logger.log("Removed %s existing trigger(s).", removed);
+}
+
+/* ------------------------------------------------------------ manual run -- */
+
+/**
+ * Manual sync. Identical to the scheduled run — same dedupe, same lock, same
+ * Logs row — so triggering it by hand can't produce a different result from
+ * the trigger. Safe to run at any time; already-ingested submissions are
+ * skipped.
+ */
+function syncNow() {
+  Logger.log("Manual sync starting…");
+
+  var stats = ingestWebflowSubmissions();
+
+  if (!stats) {
+    Logger.log("Sync skipped — another run held the lock.");
+    return null;
+  }
+
+  Logger.log(
+    "Manual sync finished — %s new row(s) from %s submission(s), %s already ingested.",
+    stats.added,
+    stats.fetched,
+    stats.duplicates
+  );
+
+  if (stats.errors.length) {
+    Logger.log("Errors this run:");
+    stats.errors.forEach(function (message) {
+      Logger.log("  %s", message);
+    });
+  }
+
+  return stats;
+}
+
+/* ----------------------------------------------------------------- reset -- */
+
+/** Every sheet this system writes to. */
+function wfManagedSheetNames_() {
+  return [
+    SHEET_SUBMISSIONS,
+    SHEET_LOGS,
+    "Weekend Trip Itinerary",
+    "Gift Sourcing Shortlist",
+    "Company Deck Template",
+    "Brief Me on Someone",
+    "Company Offsite",
+  ];
+}
+
+/**
+ * Dry run. Reports exactly what a reset would delete and changes nothing.
+ *
+ * Deliberately split from the destructive half: this is the function whose
+ * name is easy to run by accident, so it is the one that does nothing.
+ */
+function resetAllSheets() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var total = 0;
+
+  Logger.log("DRY RUN — nothing has been deleted.");
+  Logger.log("A reset would clear:");
+
+  wfManagedSheetNames_().forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet) {
+      Logger.log("  %-24s (no such sheet)", name);
+      return;
+    }
+
+    // Row 1 is headers, so data rows are everything below it.
+    var dataRows = Math.max(0, sheet.getLastRow() - 1);
+
+    total += dataRows;
+
+    Logger.log("  %-24s %s data row(s)", name, dataRows);
+  });
+
+  Logger.log("");
+  Logger.log("Total: %s data row(s) across %s sheet(s).", total, wfManagedSheetNames_().length);
+  Logger.log("");
+  Logger.log("To actually clear them, run resetAllSheetsConfirmed().");
+
+  return total;
+}
+
+/**
+ * Destructive. Clears every managed sheet completely — headers included, so
+ * the next ingest rebuilds them from whatever the payload looks like then.
+ * That matters in dev, where the question set is still changing and stale
+ * columns would otherwise linger.
+ *
+ * Does not touch triggers; deleteIngestTriggers() does that.
+ */
+function resetAllSheetsConfirmed() {
+  var spreadsheet = SpreadsheetApp.getActive();
+  var cleared = [];
+
+  wfManagedSheetNames_().forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet) {
+      Logger.log("Skipped '%s' — no such sheet.", name);
+      return;
+    }
+
+    var dataRows = Math.max(0, sheet.getLastRow() - 1);
+
+    sheet.clear();
+    sheet.setFrozenRows(0);
+
+    cleared.push(name + " (" + dataRows + " row(s))");
+  });
+
+  Logger.log("Cleared: %s", cleared.join(", ") || "nothing");
+  Logger.log(
+    "Headers are gone too — the next ingest rebuilds them from the payload."
+  );
+
+  return cleared;
+}
+
+/* ------------------------------------------------------------------ menu -- */
+
+/**
+ * Puts the manual actions in the spreadsheet's own menu bar, so a sync doesn't
+ * mean opening the script editor. Runs automatically when the sheet is opened.
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("Delegation Desk")
+    .addItem("Sync now", "syncNow")
+    .addSeparator()
+    .addItem("Check connection", "debugFetchSubmissions")
+    .addSeparator()
+    .addItem("Reset — preview", "resetAllSheets")
+    .addItem("Reset — clear everything", "resetAllSheetsConfirmed")
+    .addToUi();
 }
