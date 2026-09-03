@@ -7,6 +7,7 @@ import { state } from "./core/state.js";
 import { createDom, SELECTORS } from "./core/dom.js";
 import { createLenisService } from "./integrations/lenis.service.js";
 import { createAnimations } from "./ui/animations.js";
+import { createSubmitButton } from "./ui/submit-button.js";
 import { createFieldsService } from "./features/fields.service.js";
 import { createValidationService } from "./features/validation.service.js";
 import { createPayloadService } from "./features/payload.service.js";
@@ -24,6 +25,10 @@ const animations = createAnimations({
 });
 
 const fields = createFieldsService({
+  config: QUIZ_CONFIG,
+});
+
+const submitButton = createSubmitButton({
   config: QUIZ_CONFIG,
 });
 
@@ -46,6 +51,7 @@ const submission = createSubmissionController({
   validation,
   payload,
   fields,
+  submitButton,
 });
 
 const selection = createSelectionController({
@@ -77,6 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
         lenis,
       });
 
+      // Nothing is filled in yet, so the button starts greyed.
+      submission.refreshButton();
+
       animations.fadeIn(dom.getBlocks(QUIZ_CONFIG.intro.blocks), {
         stagger: QUIZ_CONFIG.intro.stagger,
         initialDelay: QUIZ_CONFIG.intro.initialDelay,
@@ -94,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     dom,
     lenis,
     animations,
+    submitButton,
     fields,
     validation,
     payload,

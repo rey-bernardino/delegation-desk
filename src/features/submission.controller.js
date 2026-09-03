@@ -12,6 +12,7 @@ export function createSubmissionController({
   validation,
   payload,
   fields,
+  submitButton,
 }) {
   const settings = config.submission || {};
   const categoryKey = config.payload?.categoryKey || "category";
@@ -74,6 +75,16 @@ export function createSubmissionController({
 
     getSubmitUrl,
     logPayloads,
+
+    // Keeps the button in step with the current category's validity. Cheap
+    // enough to call on every keystroke — it only reads input values.
+    refreshButton() {
+      const { isValid } = validation.checkAll();
+
+      submitButton?.setEnabled(isValid);
+
+      return isValid;
+    },
 
     // Callable from the console: window.buildSubmissionPayload()
     //

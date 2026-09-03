@@ -134,6 +134,20 @@ export function createValidationService({ config, dom, state, lenis }) {
       return this.showFieldState(field);
     },
 
+    // Reads values only — no styling, no touched flags. This drives the
+    // submit button, which has to reflect validity long before the user has
+    // visited every field.
+    checkAll() {
+      const fields = this.getScopedFields();
+      const invalid = fields.filter((field) => !this.isFieldValid(field));
+
+      return {
+        isValid: fields.length > 0 && invalid.length === 0,
+        total: fields.length,
+        invalid,
+      };
+    },
+
     // Full pass. reveal: true marks every field touched first, so a submit
     // attempt surfaces every outstanding error at once.
     validateAll(options = {}) {

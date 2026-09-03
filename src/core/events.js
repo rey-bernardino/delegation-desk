@@ -26,6 +26,9 @@ export function bindEvents({
         // The trigger is often an <a> in Webflow — don't let it navigate.
         event.preventDefault();
         selection.select(variant);
+
+        // A fresh category starts incomplete; a retained one may already pass.
+        submission.refreshButton();
       }
 
       return;
@@ -42,6 +45,7 @@ export function bindEvents({
     if (cmd === "back") {
       event.preventDefault();
       selection.back();
+      submission.refreshButton();
       return;
     }
 
@@ -69,17 +73,30 @@ export function bindEvents({
   document.addEventListener("input", (event) => {
     const field = event.target?.closest?.(fieldSelector);
 
-    if (field && validation.isTouched(field)) {
+    if (!field) {
+      return;
+    }
+
+    if (validation.isTouched(field)) {
       validation.validateField(field);
     }
+
+    // The button tracks validity even for fields the user hasn't left yet.
+    submission.refreshButton();
   });
 
   document.addEventListener("change", (event) => {
     const field = event.target?.closest?.(fieldSelector);
 
-    if (field && validation.isTouched(field)) {
+    if (!field) {
+      return;
+    }
+
+    if (validation.isTouched(field)) {
       validation.validateField(field);
     }
+
+    submission.refreshButton();
   });
 
   // focusout, not blur — blur doesn't bubble, so it can't be delegated.
@@ -93,5 +110,6 @@ export function bindEvents({
 
     validation.markTouched(field);
     validation.validateField(field);
+    submission.refreshButton();
   });
 }

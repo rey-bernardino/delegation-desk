@@ -60,6 +60,18 @@ export const QUIZ_CONFIG = {
     formId: null,
   },
 
+  submitButton: {
+    selector: '[cmd="submit"]',
+
+    // Class added while the current category is incomplete. Style
+    // [cmd="submit"].disabled in Webflow to override the built-in grey.
+    disabledClass: "disabled",
+
+    // true: the greyed button is genuinely inert.
+    // false: it stays clickable and a click reveals every outstanding error.
+    blockClicks: true,
+  },
+
   submission: {
     // Nothing is posted while this is false — the submit click only builds and
     // stores the payloads. Flip it when the destination is decided.

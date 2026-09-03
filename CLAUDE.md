@@ -215,10 +215,26 @@ Triggers, all delegated in `core/events.js`:
 - `focusout` on a `.d-field` → mark touched, validate that field.
 - `input` / `change` → re-validate, but only if already touched, so an error clears the moment it is
   fixed without shouting at a field being typed into for the first time.
-- `[cmd=submit]` → `validateAll({ reveal: true })` marks every scoped field touched so all
-  outstanding errors surface at once, then focuses and scrolls to the first one. The click is only
-  blocked when something is invalid; a valid form is left alone, since submission is a later
-  milestone.
+- `[cmd=submit]` → the button is **greyed and inert** until the current category is complete, so a
+  click can only happen on a valid form. See **The submit button** below.
+
+### The submit button
+
+`submission.refreshButton()` drives it off `validation.checkAll()` — a read-only pass that applies
+no styling and sets no touched flags, because the button has to reflect validity long before the
+user has visited every field. Refreshed on every `input`, `change` and `focusout`, and after
+`[select]` and `[cmd=back]`.
+
+Greyed state is `config.submitButton.disabledClass` (`disabled`), plus `disabled`,
+`aria-disabled`, and `pointer-events: none` — athena-form's belt-and-braces, since the control may
+be authored as a div where the property is inert. `ui/submit-button.js` injects a fallback rule in
+the same palette the rest of the site uses for disabled controls (`#d9d9d9` on `#b3b3b3`); authoring
+`[cmd="submit"].disabled` in Webflow overrides it.
+
+`config.submitButton.blockClicks: false` leaves the greyed button clickable, in which case the click
+runs `validateAll({ reveal: true })` and surfaces every outstanding error at once. The tradeoff:
+inert is cleaner, but a user who never focuses a field sees a grey button with no explanation of
+which field is missing.
 
 ## Submission
 
