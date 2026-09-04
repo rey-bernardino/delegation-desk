@@ -135,8 +135,15 @@ export function createThankyouController({
 
       // The hidden fields are not .d-field, so clearAll never touches them.
       // Left alone, the next submission would carry this one's category label
-      // and summary JSON.
-      Object.values(config.hiddenFields || {}).forEach((name) => {
+      // and summary JSON — and the previous person's consent date would sit in
+      // the DOM until the next submit overwrote it.
+      const ownedHidden = Object.values(config.hiddenFields || {});
+
+      if (config.consentDateField?.name) {
+        ownedHidden.push(config.consentDateField.name);
+      }
+
+      ownedHidden.forEach((name) => {
         fields.setValue(name, "");
       });
 

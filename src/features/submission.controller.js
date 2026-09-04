@@ -21,6 +21,42 @@ export function createSubmissionController({
   const settings = config.submission || {};
   const categoryKey = config.payload?.categoryKey || "category";
 
+  // MM/DD/YYYY in the visitor's own local time, stamped at submit rather than
+  // at load, so it records when they actually sent the form. Format and field
+  // name match athena-form, which posts to the same HubSpot portal.
+  function consentDateValue() {
+    const now = new Date();
+
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${month}/${day}/${now.getFullYear()}`;
+  }
+
+  function setConsentDate() {
+    const settings_ = config.consentDateField || {};
+
+    if (settings_.enabled === false || !settings_.name) {
+      return null;
+    }
+
+    if (settings_.onlyWhenOptedIn !== false) {
+      const optin = document.querySelector(
+        `[name="${config.hubspot?.legalConsent?.optinFieldName || "optin_email"}"]`
+      );
+
+      // An unticked box means no consent, so no date — an empty value rather
+      // than a stamp that would read as consent in the CRM.
+      if (optin && optin.checked !== true) {
+        return fields.setValue(settings_.name, "", { create: true });
+      }
+    }
+
+    return fields.setValue(settings_.name, consentDateValue(), {
+      create: true,
+    });
+  }
+
   function shouldLog() {
     return settings.logPayloads !== false;
   }
@@ -319,6 +355,10 @@ export function createSubmissionController({
       if (summaryField) {
         fields.setValue(summaryField, payload.buildSummaryJson());
       }
+
+      // Before buildAll, like the summary, so the HubSpot payload carries the
+      // stamped value rather than an empty field.
+      setConsentDate();
 
       const payloads = payload.buildAll();
 

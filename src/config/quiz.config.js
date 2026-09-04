@@ -225,6 +225,24 @@ export const QUIZ_CONFIG = {
     summary: "event_allin_delegationdesk_summary",
   },
 
+  // Stamped at submit with the visitor's local date as MM/DD/YYYY. Same field
+  // name, format and portal as athena-form's consentDateField, so the HubSpot
+  // property already accepts this shape.
+  //
+  // The input is created inside [form-block=info] if the Webflow markup does
+  // not carry it, so this works without waiting for a publish.
+  consentDateField: {
+    enabled: true,
+    name: "optin_email_dateconsented",
+
+    // Only stamp a date when the opt-in is actually ticked. athena-form writes
+    // it unconditionally; here a date is a record that consent was given, and
+    // recording one for someone who declined would be false. The opt-in is
+    // required, so in practice this is always true — the guard is for the day
+    // it stops being required. Set false to match athena exactly.
+    onlyWhenOptedIn: true,
+  },
+
   intro: {
     // Blocks faded in on page load, in order.
     blocks: ["intro-logo", "select"],

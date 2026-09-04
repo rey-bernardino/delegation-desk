@@ -93,6 +93,20 @@ is picked, with the **display label** from `config.variantLabels`, not the slug:
 | `brief` | Brief Me on Someone |
 | `offsite` | Company Offsite |
 
+`config.consentDateField` (`optin_email_dateconsented`) is stamped on submit with the visitor's
+**local** date as `MM/DD/YYYY` — the same field name, format and HubSpot portal as athena-form's
+`consentDateField` on the `bareshort` branch, so the property already accepts this shape. Stamped at
+submit rather than at load, so it records when consent was actually given.
+
+`fields.ensureField` creates the input inside `[form-block=info]` if the markup doesn't carry it, so
+this works without waiting for a Webflow publish. The live page does carry it, so that path is a
+fallback. It gets no `.d-field` class, so validation ignores it, and living in a
+`contactFormBlocks` block means the HubSpot payload picks it up with no extra wiring.
+
+`onlyWhenOptedIn` (default true) leaves the field **empty** when the box is unticked, rather than
+stamping a date that would read as consent in the CRM. athena-form writes it unconditionally; set
+the flag false to match. The opt-in is required today, so this only matters if that changes.
+
 `config.hiddenFields.summary` (`event_allin_delegationdesk_summary`) is written on submit with the
 summary JSON — see **The summary payload** below. It is filled *before* the HubSpot payload is
 built, so that payload carries the value rather than an empty string.
