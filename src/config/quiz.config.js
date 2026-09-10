@@ -55,10 +55,18 @@ export const QUIZ_CONFIG = {
     // Where a field's human-readable label comes from.
     labelSelector: ".d-field-label",
 
-    // Where ONE OPTION's label comes from inside a pick-any group. Webflow's
-    // own class, since that is what its checkbox component ships. Used only
-    // when the option has no authored value attribute.
-    optionLabelSelector: ".w-form-label",
+    // Nested hint text to drop when reading a label. The page authors these as
+    // `<label>Question<br><span class="subtext">hint</span></label>`, and
+    // textContent flattens that into "QuestionHint" with no separator — which
+    // would become the Google Sheets column header verbatim.
+    labelIgnoreSelector: ".subtext",
+
+    // Where ONE OPTION's label comes from inside a pick-any group, used only
+    // when the option has no authored value attribute. Scoped to the option's
+    // own wrapper, so .d-field-label here is the option's label and not the
+    // question's. Webflow's .w-form-label is listed for markup that uses its
+    // stock checkbox component instead.
+    optionLabelSelector: ".w-form-label, .d-field-label",
 
     // How the ticked options of a pick-any group are joined into the single
     // cell the sheet gets. Comma-space reads well in a spreadsheet; pick

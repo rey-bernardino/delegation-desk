@@ -543,18 +543,51 @@ no validation, no submission, no DOM mutation.
 `[form-block=info]` is contact detail, not an answer — it goes to both destinations and is never
 included in `answers`. Labels come from `.d-field-label` inside the field's wrapper.
 
+### How a group's label is resolved
+
+`labelOf` takes the **first** `.d-field-label` inside the field's `.d-field-container`. In a group
+that is the question, because the page authors it above the options — **but the option labels carry
+the same class**, so nothing except document order distinguishes them. Moving the question label
+below the options would silently put an option's text in the Google Sheets header. Keep it first.
+
+`config.payload.labelIgnoreSelector` (`.subtext`) is stripped before the text is read, and
+whitespace is collapsed. The page authors hints as
+`<label>Question<br><span class="subtext">hint</span></label>`, and `textContent` flattens that with
+no separator — so the brief radio group's header would otherwise read
+`What is the goal for your meeting?Radio selection - select one`. The strip happens on a **clone**,
+so nothing on screen changes. `buildLegalConsent` deliberately does **not** use this: the consent
+text is a legal record of what was agreed, so it is left exactly as authored.
+
+`config.payload.optionLabelSelector` (`.w-form-label, .d-field-label`) is the same lookup for one
+*option*, used only when that option has no authored `value`. It is scoped to the option's own
+wrapper, so `.d-field-label` there is the option's label rather than the question's.
+
+**Two fields in one category must not share a `name`.** The summary payload's `fields` and `labels`
+are flat maps keyed by name, so a collision collapses to one key and the earlier answer never
+reaches the sheet. `getCategoryGroups` warns once per category when it sees one. This is live on the
+page today: `[form-block=brief]` has both a `<textarea name="brief-goal">` and a radio group named
+`brief-goal`, and the textarea's answer is being dropped. It can only be fixed in Webflow, by
+renaming one of them.
+
 ## Webflow-side CSS
 
 Neither file here is bundled — both are pasted into the Webflow page.
 
 - `webflow/optin-checkbox.css` — the opt-in checkbox, targeting its bespoke `.d-checkbox` markup.
-- `webflow/radio-group.css` — radio groups, targeting Webflow's own Radio Button component.
-  Requires a `radio` combo class on the question's `.d-field-container`, matching how the opt-in
-  file keys off `.checkbox`.
+- `webflow/radio-group.css` — radio groups. Targets the page's own `.d-radio` option wrappers,
+  mirroring the opt-in's `.d-checkbox` pattern rather than Webflow's stock Radio Button component,
+  because that is how the page is actually authored (there is not one `.w-radio` on it). Requires a
+  `radio` combo class on the question's `.d-field-container`, matching how the opt-in file keys off
+  `.checkbox`. Also styles the `.subtext` hint, and carries a defensive block for an option dragged
+  in as Webflow's stock component.
 
 Both undo the same two site rules: `.d-field { width: 100% }`, which stretches the native control
 across the row, and the generic `.d-field-container.invalid input` rule, which adds an error icon
 and 35px of right padding that wreck a 22px control.
+
+Every rule is scoped either to `> .d-field-label` (the question) or to `.d-radio .d-field-label` (an
+option), because **option labels carry the same class as the question label**. Dropping that scoping
+restyles the question as an option and vice versa.
 
 **Turn Webflow's "Custom" radio styling OFF for these radios.** With it on, Webflow hides the real
 input behind `opacity: 0` and paints a `.w-radio-input` div instead — so the styled control is not

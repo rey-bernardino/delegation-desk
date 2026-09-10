@@ -4,24 +4,24 @@
  * is fine), or into the same embed that holds the markup. Not bundled — same
  * arrangement as optin-checkbox.css.
  *
- * Targets Webflow's own Radio Button component, one .d-field-container per
- * QUESTION holding every option:
+ * Targets the markup as authored on the page, which mirrors the opt-in's
+ * .d-checkbox pattern rather than Webflow's stock Radio Button component:
  *   .d-field-container.radio
- *     └ label.d-field-label            ← the question
- *     └ label.w-radio                  ← one per option
- *         ├ input.d-field[type=radio]
- *         └ span.w-form-label          ← the option's own text
+ *     └ label.d-field-label            ← the QUESTION
+ *         └ span.subtext               ← optional hint under it
+ *     └ .d-radio                       ← one per option
+ *         ├ input.d-field.radio[type=radio]
+ *         └ label.d-field-label        ← the option's own text
+ *             └ span.subtext           ← optional hint under the option
  *     └ span.errorMessage
+ *
+ * The option labels carry the SAME class as the question label, so every rule
+ * below is scoped either to `> .d-field-label` (the question) or to
+ * `.d-radio .d-field-label` (an option). Dropping that scoping restyles the
+ * question as an option and vice versa.
  *
  * Colours are the site's own: deep forest #062812, golden tan #dcba79,
  * field border rgba(38, 67, 48, .455).
- *
- * IF WEBFLOW'S "CUSTOM" RADIO STYLING IS ON, the real input is hidden at
- * opacity 0 and a .w-radio-input div is painted in its place. That div is what
- * you would be styling, and none of the rules below reach it. Turn custom
- * styling OFF for these radios (Radio Button settings → uncheck "Custom"), or
- * the box you see will not be the box this file draws. The last block hides
- * that div defensively in case it is left on.
  */
 
 /* The question stacks; the options sit under it. */
@@ -31,13 +31,14 @@
   gap: 10px;
 }
 
+/* Direct child only — the question, never an option's label. */
 .d-field-container.radio > .d-field-label {
   margin: 0 0 2px;
   color: #062812;
 }
 
-/* One option: box and its text on a row. */
-.d-field-container.radio .w-radio {
+/* One option: control and its text on a row. */
+.d-field-container.radio .d-radio {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -48,7 +49,7 @@
 
 /* .d-field sets width:100%, which stretches the native control across the
    row. Undo that before restyling — same problem as the opt-in checkbox. */
-.d-field-container.radio .d-field[type="radio"] {
+.d-field-container.radio .d-field.radio[type="radio"] {
   -webkit-appearance: none;
   appearance: none;
   flex: 0 0 auto;
@@ -70,34 +71,35 @@
     box-shadow 0.15s ease;
 }
 
-.d-field-container.radio .d-field[type="radio"]:hover {
+.d-field-container.radio .d-field.radio[type="radio"]:hover {
   border-color: #062812;
 }
 
 /* Selected: a deep forest dot, drawn in CSS so there is no image to load and
-   it stays crisp at any zoom. A border-based ring would fight the 1px border
-   already there, so this uses an inset shadow instead. */
-.d-field-container.radio .d-field[type="radio"]:checked {
+   it stays crisp at any zoom. An inset shadow rather than a border, so it does
+   not fight the 1px border already there. */
+.d-field-container.radio .d-field.radio[type="radio"]:checked {
   border-color: #062812;
   background-color: #fff;
   box-shadow: inset 0 0 0 6px #062812;
 }
 
 /* Keyboard focus only — no ring on mouse or touch. */
-.d-field-container.radio .d-field[type="radio"]:focus-visible {
+.d-field-container.radio .d-field.radio[type="radio"]:focus-visible {
   outline: none;
   border-color: #dcba79;
   box-shadow: 0 0 0 3px rgba(220, 186, 121, 0.55);
 }
 
-.d-field-container.radio .d-field[type="radio"]:checked:focus-visible {
+.d-field-container.radio .d-field.radio[type="radio"]:checked:focus-visible {
   box-shadow:
     inset 0 0 0 6px #062812,
     0 0 0 3px rgba(220, 186, 121, 0.55);
 }
 
-.d-field-container.radio .w-radio .w-form-label,
-.d-field-container.radio .w-radio .d-field-label {
+/* An option's label. Scoped inside .d-radio so the question keeps its own
+   weight and spacing. */
+.d-field-container.radio .d-radio .d-field-label {
   margin: 0;
   cursor: pointer;
   font-size: 15px;
@@ -105,6 +107,18 @@
   line-height: 1.45;
   color: #062812;
   user-select: none;
+}
+
+/* The hint under a question or an option. The markup is
+   `label text<br><span class="subtext">hint</span>`, so the <br> supplies the
+   line break and this only needs to de-emphasise it. */
+.d-field-container.radio .subtext {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(6, 40, 18, 0.62);
 }
 
 /* The generic invalid rule adds an error icon and 35px of right padding to
@@ -115,7 +129,7 @@
   background-image: none;
 }
 
-.d-field-container.radio.invalid .d-field[type="radio"] {
+.d-field-container.radio.invalid .d-field.radio[type="radio"] {
   border-color: rgb(245, 82, 82);
 }
 
@@ -123,20 +137,26 @@
   margin: 2px 0 0;
 }
 
-/* Webflow's custom radio div, hidden in case custom styling was left on — the
-   real input above is what this file draws, and showing both gives two boxes
-   per option. */
+/* Defensive, for an option dragged in as Webflow's stock Radio Button: hide
+   the div it paints, and undo the inline opacity/position it puts on the real
+   input. !important is required — Webflow writes those three properties
+   inline, where a stylesheet rule loses to them, and hiding the div without
+   this leaves no visible control at all. */
 .d-field-container.radio .w-radio-input,
 .d-field-container.radio .w-form-formradioinput--inputType-custom {
   display: none;
 }
 
-/* Webflow ships the real input at opacity:0, position:absolute, z-index:-1 as
-   INLINE styles when custom styling is on, so undoing them needs !important —
-   a stylesheet rule loses to an inline one. Without this the block above hides
-   Webflow's painted div and the input stays invisible, leaving no control at
-   all: the one case this defence exists for. */
-.d-field-container.radio .d-field[type="radio"] {
+.d-field-container.radio .w-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.d-field-container.radio .w-radio .d-field[type="radio"] {
   opacity: 1 !important;
   position: relative !important;
   z-index: auto !important;

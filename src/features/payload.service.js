@@ -22,7 +22,70 @@ export function createPayloadService({ config, dom, state }) {
   const contactBlockNames = settings.contactFormBlocks || [infoBlockName];
   const categoryKey = settings.categoryKey || "category";
   const fieldSelector = config.fieldSelector || ".d-field";
-  const optionLabelSelector = settings.optionLabelSelector || ".w-form-label";
+  const optionLabelSelector =
+    settings.optionLabelSelector || ".w-form-label, .d-field-label";
+  const labelIgnoreSelector = settings.labelIgnoreSelector ?? ".subtext";
+
+  // Already-warned name collisions, so the warning fires once per set rather
+  // than on every payload build.
+  const warnedCollisions = new Set();
+
+  // Label text as a human reads it: the nested hint dropped, and whitespace
+  // collapsed. <br> contributes nothing to textContent, so without this a
+  // label like `Catering<br><span class="subtext">Meals…</span>` flattens to
+  // "CateringMeals…" and lands in the sheet header exactly like that.
+  function textOf(element) {
+    if (!element) {
+      return "";
+    }
+
+    // Clone, so stripping the hint never touches what is on screen.
+    const clone = element.cloneNode(true);
+
+    if (labelIgnoreSelector) {
+      clone
+        .querySelectorAll(labelIgnoreSelector)
+        .forEach((node) => node.remove());
+    }
+
+    return (clone.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  // Two questions in one category answering to the same name collapse into a
+  // single key in the summary's flat maps, so one of the two answers is
+  // silently dropped from the sheet. It is authored in Webflow, so it can only
+  // be fixed there — say so loudly rather than losing an answer quietly.
+  function warnOnDuplicateNames(groups, variant) {
+    const counts = new Map();
+
+    groups.forEach((group) => {
+      counts.set(group.name, (counts.get(group.name) || 0) + 1);
+    });
+
+    const clashes = [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([name]) => name);
+
+    if (!clashes.length) {
+      return;
+    }
+
+    const key = `${variant}:${clashes.join(",")}`;
+
+    if (warnedCollisions.has(key)) {
+      return;
+    }
+
+    warnedCollisions.add(key);
+
+    console.warn(
+      `Delegation Desk: "${variant}" has more than one field named ` +
+        `${clashes.map((n) => `"${n}"`).join(", ")}. The summary payload is ` +
+        "keyed by name, so only the LAST one reaches Google Sheets — the " +
+        "other answer is lost. Rename one of them in Webflow.",
+      clashes
+    );
+  }
   const multiValueSeparator = settings.multiValueSeparator ?? ", ";
 
   function fieldsIn(blockName) {
@@ -65,11 +128,15 @@ export function createPayloadService({ config, dom, state }) {
     },
 
     labelOf(field) {
+      // querySelector, so this is the FIRST .d-field-label in the wrapper.
+      // In a group the question's label is authored above the options, whose
+      // labels carry the same class — document order is what distinguishes
+      // them, so the question label must stay first inside the container.
       const label = field
         .closest(wrapperSelector)
         ?.querySelector(labelSelector);
 
-      return (label?.textContent || "").trim() || field.name || "";
+      return textOf(label) || field.name || "";
     },
 
     valueOf(field) {
@@ -121,7 +188,7 @@ export function createPayloadService({ config, dom, state }) {
       // can't pick up the first option's text for every box in the group.
       const holder = field.closest("label") || field.parentElement;
       const optionLabel = holder?.querySelector(optionLabelSelector);
-      const text = (optionLabel?.textContent || "").trim();
+      const text = textOf(optionLabel);
 
       return text || authored || "true";
     },
@@ -145,10 +212,14 @@ export function createPayloadService({ config, dom, state }) {
     },
 
     getCategoryGroups(variant = state.selectedVariant) {
-      return groupFields(this.getCategoryFields(variant), {
+      const groups = groupFields(this.getCategoryFields(variant), {
         fieldSelector,
         wrapperSelector,
       });
+
+      warnOnDuplicateNames(groups, variant || "(none)");
+
+      return groups;
     },
 
     // Category, the info fields as separate top-level keys, and the category's

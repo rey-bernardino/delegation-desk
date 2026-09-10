@@ -401,10 +401,28 @@
           </div>
         </div>
 
+        <!-- Copied from the live page. Note the deliberate name COLLISION:
+             the textarea and the radio group are both named brief-goal, which
+             is authored that way on the real page. The summary payload is
+             keyed by name, so one of the two answers is dropped — the
+             duplicate-name warning exists to catch exactly this. -->
         <div form-block="brief">
           <div class="d-field-container">
-            <label class="d-field-label">brief-name</label>
-            <input type="text" name="brief-name" class="d-field" />
+            <label class="d-field-label" for="brief-goal">What do you want out of your meeting with them?</label>
+            <textarea class="d-field textarea" id="brief-goal" name="brief-goal" placeholder="Build rapport / explore fit"></textarea>
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <div class="d-field-container radio" field-optional="true">
+            <label class="d-field-label">What is the goal for your meeting?<br /><span class="subtext">Radio selection - select one</span></label>
+            <div class="d-radio">
+              <input class="d-field radio" type="radio" id="brief-goal_1" name="brief-goal" value="Prepare for a conversation or introduction" />
+              <label class="d-field-label" for="brief-goal_1">Prepare for a conversation or introduction</label>
+            </div>
+            <div class="d-radio">
+              <input class="d-field radio" type="radio" id="brief-goal_2" name="brief-goal" value="Prepare to pitch, sell, or explore a partnership" />
+              <label class="d-field-label" for="brief-goal_2">Prepare to pitch, sell, or explore a partnership</label>
+            </div>
             <span class="errorMessage">Please complete this required field.</span>
           </div>
         </div>
@@ -414,6 +432,25 @@
             <label class="d-field-label">offsite-howmany</label>
             <input type="text" name="offsite-howmany" class="d-field" />
             <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <!-- Copied from the live page: the question label is FIRST, the
+               option labels carry the same .d-field-label class, and each
+               label holds a .subtext hint that must not reach the sheet. -->
+          <div class="d-field-container checkbox" field-optional="true">
+            <label class="d-field-label">Additional considerations</label>
+            <div class="d-checkbox">
+              <input class="d-field checkbox" type="checkbox" id="oac_catering" name="offsite-additionalconsideration" value="catering" />
+              <label class="d-field-label" for="oac_catering">Catering<br /><span class="subtext">Meals, refreshments, and estimated costs</span></label>
+            </div>
+            <div class="d-checkbox">
+              <input class="d-field checkbox" type="checkbox" id="oac_transportation" name="offsite-additionalconsideration" value="transportation" />
+              <label class="d-field-label" for="oac_transportation">Transportation<br /><span class="subtext">Airport transfers, group transportation, or local travel</span></label>
+            </div>
+            <div class="d-checkbox">
+              <input class="d-field checkbox" type="checkbox" id="oac_swag" name="offsite-additionalconsideration" />
+              <label class="d-field-label" for="oac_swag">Swag<br /><span class="subtext">Welcome gifts, branded items, or team kits</span></label>
+            </div>
           </div>
         </div>
 
