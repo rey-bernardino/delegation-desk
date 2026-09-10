@@ -236,7 +236,7 @@ the opt-in is required by decision, so the submit button stays grey until the bo
 Checkboxes and radios validate on `.checked`, never `.value` — a checkbox always carries a `value`
 attribute, so reading `.value` would make an unticked box look filled in.
 
-### Pick any of N
+### Pick any of N, and pick one of N
 
 **The unit of validation is the question, not the input.** `core/field-groups.js` collapses
 `.d-field` checkboxes (and radios) that share a `name` *within the same `[form-block]`* into one
@@ -256,6 +256,17 @@ shared container, and `labelOf` finds the question rather than an option.
 `Checkbox-2`), and a group authored without renaming them silently becomes N separate required
 questions — the form just refuses to enable submit, with nothing to say why. `field-groups.js` warns
 once per wrapper when it sees differently-named checkboxes sharing one container.
+
+**Radios need no renaming** — they share a name natively, so a Webflow radio group is picked up as
+one question with nothing to configure. They take the same option-value fallback: a radio left at
+Webflow's default reads back as `"on"`, so `optionValueOf` uses its `.w-form-label` text.
+
+One radio-only caveat: **the browser groups radios by name document-wide**, not per `[form-block]`,
+so two categories both using `name="budget"` would deselect each other. Grouping here is correctly
+scoped to the block, so validation and the payload stay right either way, and `clearAll` wipes the
+other category's answers on a switch regardless — which is why this is latent rather than live.
+Keeping the existing `<category>-` name prefix (`deck-audience`, `trip-activities`) avoids it
+entirely.
 
 Touched-ness is also a group property (`validation.isTouchedGroup`), and `core/events.js` uses it
 rather than the per-input `isTouched`. The user only ever leaves *one* box of a group, so a per-input
