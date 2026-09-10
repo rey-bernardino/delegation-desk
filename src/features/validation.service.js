@@ -35,6 +35,7 @@ export function createValidationService({ config, dom, state, lenis }) {
 
   // Warned-about elements, so a bad limit says so once rather than per change.
   const warnedLimits = new WeakSet();
+  const warnedRadioLimits = new WeakSet();
 
   function validateEmail(email) {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -338,6 +339,26 @@ export function createValidationService({ config, dom, state, lenis }) {
     enforceLimits(groups) {
       (groups || allGroups()).forEach((group) => {
         if (!isCheckedType(group.fields[0]) || group.fields.length < 2) {
+          return;
+        }
+
+        // NEVER lock a radio group. It is natively capped at one, so it is
+        // always "at the cap" the moment anything is picked — and locking the
+        // rest would strand the user on their first choice with no way back,
+        // because a radio cannot be unticked the way a checkbox can.
+        if (group.type === "radio") {
+          if (maxFor(group) !== null && !warnedRadioLimits.has(group.fields[0])) {
+            warnedRadioLimits.add(group.fields[0]);
+
+            console.warn(
+              `Delegation Desk: ${maxAttribute} on a radio group has no ` +
+                "effect — radios already allow only one choice. Ignoring it, " +
+                "because locking the other options would trap the user on " +
+                "their first pick.",
+              group.fields[0]
+            );
+          }
+
           return;
         }
 

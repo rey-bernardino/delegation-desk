@@ -1,0 +1,143 @@
+/* Delegation Desk — radio groups (pick one of N)
+ *
+ * Paste inside a <style> tag in the Webflow page's custom code (before </body>
+ * is fine), or into the same embed that holds the markup. Not bundled — same
+ * arrangement as optin-checkbox.css.
+ *
+ * Targets Webflow's own Radio Button component, one .d-field-container per
+ * QUESTION holding every option:
+ *   .d-field-container.radio
+ *     └ label.d-field-label            ← the question
+ *     └ label.w-radio                  ← one per option
+ *         ├ input.d-field[type=radio]
+ *         └ span.w-form-label          ← the option's own text
+ *     └ span.errorMessage
+ *
+ * Colours are the site's own: deep forest #062812, golden tan #dcba79,
+ * field border rgba(38, 67, 48, .455).
+ *
+ * IF WEBFLOW'S "CUSTOM" RADIO STYLING IS ON, the real input is hidden at
+ * opacity 0 and a .w-radio-input div is painted in its place. That div is what
+ * you would be styling, and none of the rules below reach it. Turn custom
+ * styling OFF for these radios (Radio Button settings → uncheck "Custom"), or
+ * the box you see will not be the box this file draws. The last block hides
+ * that div defensively in case it is left on.
+ */
+
+/* The question stacks; the options sit under it. */
+.d-field-container.radio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.d-field-container.radio > .d-field-label {
+  margin: 0 0 2px;
+  color: #062812;
+}
+
+/* One option: box and its text on a row. */
+.d-field-container.radio .w-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* .d-field sets width:100%, which stretches the native control across the
+   row. Undo that before restyling — same problem as the opt-in checkbox. */
+.d-field-container.radio .d-field[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(38, 67, 48, 0.455);
+  border-radius: 50%; /* the one visual difference from the checkbox */
+  background-color: #fff;
+  background-image: none;
+  cursor: pointer;
+  position: relative;
+  top: 1px; /* optically aligns with the first line of the option text */
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.d-field-container.radio .d-field[type="radio"]:hover {
+  border-color: #062812;
+}
+
+/* Selected: a deep forest dot, drawn in CSS so there is no image to load and
+   it stays crisp at any zoom. A border-based ring would fight the 1px border
+   already there, so this uses an inset shadow instead. */
+.d-field-container.radio .d-field[type="radio"]:checked {
+  border-color: #062812;
+  background-color: #fff;
+  box-shadow: inset 0 0 0 6px #062812;
+}
+
+/* Keyboard focus only — no ring on mouse or touch. */
+.d-field-container.radio .d-field[type="radio"]:focus-visible {
+  outline: none;
+  border-color: #dcba79;
+  box-shadow: 0 0 0 3px rgba(220, 186, 121, 0.55);
+}
+
+.d-field-container.radio .d-field[type="radio"]:checked:focus-visible {
+  box-shadow:
+    inset 0 0 0 6px #062812,
+    0 0 0 3px rgba(220, 186, 121, 0.55);
+}
+
+.d-field-container.radio .w-radio .w-form-label,
+.d-field-container.radio .w-radio .d-field-label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #062812;
+  user-select: none;
+}
+
+/* The generic invalid rule adds an error icon and 35px of right padding to
+   inputs, which wrecks a 22px control. Neutralise it and tint the ring
+   instead — same fix as the opt-in checkbox. */
+.d-field-container.radio.invalid input {
+  padding-right: 0;
+  background-image: none;
+}
+
+.d-field-container.radio.invalid .d-field[type="radio"] {
+  border-color: rgb(245, 82, 82);
+}
+
+.d-field-container.radio .errorMessage {
+  margin: 2px 0 0;
+}
+
+/* Webflow's custom radio div, hidden in case custom styling was left on — the
+   real input above is what this file draws, and showing both gives two boxes
+   per option. */
+.d-field-container.radio .w-radio-input,
+.d-field-container.radio .w-form-formradioinput--inputType-custom {
+  display: none;
+}
+
+/* Webflow ships the real input at opacity:0, position:absolute, z-index:-1 as
+   INLINE styles when custom styling is on, so undoing them needs !important —
+   a stylesheet rule loses to an inline one. Without this the block above hides
+   Webflow's painted div and the input stays invisible, leaving no control at
+   all: the one case this defence exists for. */
+.d-field-container.radio .d-field[type="radio"] {
+  opacity: 1 !important;
+  position: relative !important;
+  z-index: auto !important;
+}

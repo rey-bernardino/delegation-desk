@@ -321,7 +321,12 @@ once per wrapper when it sees differently-named checkboxes sharing one container
 one question with nothing to configure. They take the same option-value fallback: a radio left at
 Webflow's default reads back as `"on"`, so `optionValueOf` uses its `.w-form-label` text.
 
-One radio-only caveat: **the browser groups radios by name document-wide**, not per `[form-block]`,
+**`field-max` is ignored on a radio group**, with a warning. A radio group is natively capped at
+one, so it is "at the cap" the instant anything is picked — and locking the remaining options would
+strand the user on their first choice, with no way back, because a radio cannot be unticked the way
+a checkbox can.
+
+One further radio-only caveat: **the browser groups radios by name document-wide**, not per `[form-block]`,
 so two categories both using `name="budget"` would deselect each other. Grouping here is correctly
 scoped to the block, so validation and the payload stay right either way, and `clearAll` wipes the
 other category's answers on a switch regardless — which is why this is latent rather than live.
@@ -540,10 +545,23 @@ included in `answers`. Labels come from `.d-field-label` inside the field's wrap
 
 ## Webflow-side CSS
 
-`webflow/optin-checkbox.css` styles the opt-in checkbox and is **not bundled** — it is pasted into
-the Webflow page. Two things it has to undo: `.d-field { width: 100% }`, which stretches the native
-box across the row, and the generic `.d-field-container.invalid input` rule, which adds an error
-icon and 35px of right padding that wreck a 22px box.
+Neither file here is bundled — both are pasted into the Webflow page.
+
+- `webflow/optin-checkbox.css` — the opt-in checkbox, targeting its bespoke `.d-checkbox` markup.
+- `webflow/radio-group.css` — radio groups, targeting Webflow's own Radio Button component.
+  Requires a `radio` combo class on the question's `.d-field-container`, matching how the opt-in
+  file keys off `.checkbox`.
+
+Both undo the same two site rules: `.d-field { width: 100% }`, which stretches the native control
+across the row, and the generic `.d-field-container.invalid input` rule, which adds an error icon
+and 35px of right padding that wreck a 22px control.
+
+**Turn Webflow's "Custom" radio styling OFF for these radios.** With it on, Webflow hides the real
+input behind `opacity: 0` and paints a `.w-radio-input` div instead — so the styled control is not
+the one this CSS draws. `radio-group.css` hides that div and forces the input visible again, which
+needs `!important` because Webflow writes those three properties **inline**, where a stylesheet rule
+loses to them. Without the `!important` the div is hidden and the input stays invisible, leaving no
+control on screen at all — exactly the case the defence exists for.
 
 ## The hidden Webflow form
 
