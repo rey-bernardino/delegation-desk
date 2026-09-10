@@ -11,6 +11,7 @@
 
 import { formBlockNamesFor } from "../core/variants.js";
 import { getCookie } from "../utils/cookies.js";
+import { groupFields, isMultiGroup } from "../core/field-groups.js";
 
 export function createPayloadService({ config, dom, state }) {
   const settings = config.payload || {};
@@ -21,6 +22,8 @@ export function createPayloadService({ config, dom, state }) {
   const contactBlockNames = settings.contactFormBlocks || [infoBlockName];
   const categoryKey = settings.categoryKey || "category";
   const fieldSelector = config.fieldSelector || ".d-field";
+  const optionLabelSelector = settings.optionLabelSelector || ".w-form-label";
+  const multiValueSeparator = settings.multiValueSeparator ?? ", ";
 
   function fieldsIn(blockName) {
     const block = dom.getFormBlock(blockName);
@@ -98,6 +101,56 @@ export function createPayloadService({ config, dom, state }) {
       return categoryBlockNames(variant).flatMap(fieldsIn);
     },
 
+    // What one option of a pick-any group contributes to the joined answer.
+    //
+    // Deliberately NOT part of valueOf(): the opt-in checkbox goes through
+    // that on its way to HubSpot, and swapping its "on" for the consent
+    // sentence would quietly change what lands on the contact record.
+    optionValueOf(field) {
+      // getAttribute, not .value — an unset value attribute reads back as the
+      // browser default "on", which is indistinguishable from a deliberate
+      // one and useless in a spreadsheet.
+      const authored = (field.getAttribute("value") || "").trim();
+
+      if (authored && authored !== "on") {
+        return authored;
+      }
+
+      // Webflow authors routinely leave the value alone, so fall back to the
+      // option's own visible text. Scoped to the option's own label so it
+      // can't pick up the first option's text for every box in the group.
+      const holder = field.closest("label") || field.parentElement;
+      const optionLabel = holder?.querySelector(optionLabelSelector);
+      const text = (optionLabel?.textContent || "").trim();
+
+      return text || authored || "true";
+    },
+
+    // One value per question. A pick-any group collapses to its ticked
+    // options joined into a single cell, rather than N columns of "on".
+    valueOfGroup(group) {
+      if (!isMultiGroup(group)) {
+        return this.valueOf(group.fields[0]);
+      }
+
+      return group.fields
+        .filter((field) => field.checked)
+        .map((field) => this.optionValueOf(field))
+        .join(multiValueSeparator);
+    },
+
+    // The question's label, off the wrapper the whole group shares.
+    labelOfGroup(group) {
+      return this.labelOf(group.fields[0]);
+    },
+
+    getCategoryGroups(variant = state.selectedVariant) {
+      return groupFields(this.getCategoryFields(variant), {
+        fieldSelector,
+        wrapperSelector,
+      });
+    },
+
     // Category, the info fields as separate top-level keys, and the category's
     // own answers with their labels.
     buildQuizPayload(variant = state.selectedVariant) {
@@ -114,10 +167,10 @@ export function createPayloadService({ config, dom, state }) {
         payload[field.name] = this.valueOf(field);
       });
 
-      payload.answers = this.getCategoryFields(variant).map((field) => ({
-        name: field.name,
-        label: this.labelOf(field),
-        value: this.valueOf(field),
+      payload.answers = this.getCategoryGroups(variant).map((group) => ({
+        name: group.name || group.fields[0].name,
+        label: this.labelOfGroup(group),
+        value: this.valueOfGroup(group),
       }));
 
       return payload;
@@ -259,17 +312,21 @@ export function createPayloadService({ config, dom, state }) {
         payload.contact[field.name] = this.valueOf(field);
       });
 
-      const categoryFields = this.getCategoryFields(variant);
+      // Grouped, so a pick-any question is one key — the flat map is keyed by
+      // field name, so N boxes sharing a name would otherwise overwrite each
+      // other down to whichever came last, and the sheet would show one
+      // option instead of the set.
+      const categoryGroups = this.getCategoryGroups(variant);
 
-      categoryFields.forEach((field) => {
-        payload.fields[field.name] = this.valueOf(field);
+      categoryGroups.forEach((group) => {
+        payload.fields[group.name] = this.valueOfGroup(group);
       });
 
       if (summarySettings.includeLabels !== false) {
         payload.labels = {};
 
-        categoryFields.forEach((field) => {
-          payload.labels[field.name] = this.labelOf(field);
+        categoryGroups.forEach((group) => {
+          payload.labels[group.name] = this.labelOfGroup(group);
         });
       }
 

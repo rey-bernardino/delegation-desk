@@ -73,6 +73,7 @@ Markup lives in Webflow, not this repo. Sections are `[block="name"]` elements.
 | `.d-field` (`config.fieldSelector`) | An input the quiz owns. Cleared on a category switch unless its `[form-block]` is in `config.preserveFormBlocks`. |
 | `.d-field-container` (`config.validation.fieldWrapper`) | Wrapper that carries the `invalid` class. Webflow styles the red border and reveals `.errorMessage` off it. |
 | `[form-block=optin]` | Email consent checkbox. **Required.** Preserved across category switches, sent to HubSpot, never a category answer. |
+| several `.d-field` checkboxes sharing one `name` | One "pick any of N" question. See **Pick any of N** below. |
 | `data-dd-touched` | Set once the user has left a field. Untouched fields validate but stay unstyled. |
 
 ### Hidden fields
@@ -234,6 +235,32 @@ the opt-in is required by decision, so the submit button stays grey until the bo
 
 Checkboxes and radios validate on `.checked`, never `.value` — a checkbox always carries a `value`
 attribute, so reading `.value` would make an unticked box look filled in.
+
+### Pick any of N
+
+**The unit of validation is the question, not the input.** `core/field-groups.js` collapses
+`.d-field` checkboxes (and radios) that share a `name` *within the same `[form-block]`* into one
+group, and `validation.getScopedGroups()` is what `checkAll` and `validateAll` iterate. A group is
+answered when **any** one option is ticked.
+
+Checking each box in turn instead would demand the user tick *all* of them, and would make a radio
+group impossible to satisfy at all — only one of those can ever be checked. `total` in a validation
+result counts questions, and `invalid` carries one representative input per group.
+
+Authoring, in Webflow: one `.d-field-container` per question holding the question's
+`.d-field-label`, every option as Webflow's own `<label class="w-checkbox">`, and a single
+`.errorMessage`. Wrapper and label resolution then work unchanged — the `invalid` class lands on the
+shared container, and `labelOf` finds the question rather than an option.
+
+**Every option must carry the same `name`.** Webflow names them uniquely by default (`Checkbox`,
+`Checkbox-2`), and a group authored without renaming them silently becomes N separate required
+questions — the form just refuses to enable submit, with nothing to say why. `field-groups.js` warns
+once per wrapper when it sees differently-named checkboxes sharing one container.
+
+Touched-ness is also a group property (`validation.isTouchedGroup`), and `core/events.js` uses it
+rather than the per-input `isTouched`. The user only ever leaves *one* box of a group, so a per-input
+check left the error raised against the first option frozen on screen after they answered by ticking
+a different one.
 
 Styling only appears once a field carries `data-dd-touched`, set on `focusout`. This is athena-form's
 `solo=""` convention inverted: there, untouched fields carry the attribute; here, touched ones do.
@@ -408,6 +435,16 @@ so column order stays stable as long as the Webflow markup order does.
 
 - `v` (`config.payload.summary.version`) — bump when the shape changes so a downstream reader can
   branch on it rather than guess. Never reuse a number.
+- A pick-any group is **one key**, its ticked options joined by
+  `config.payload.multiValueSeparator` (`", "`) — `"Hiking, Museums"` in a single cell rather than
+  N columns of `on`. `fields` is keyed by field name, so without grouping the N boxes would
+  overwrite each other down to whichever came last. Pick a different separator if an option's text
+  can contain a comma.
+- An option contributes its authored `value` attribute; with none set, `optionValueOf` falls back to
+  the option's own visible `.w-form-label` text, because a Webflow checkbox left at its default
+  reads back as `"on"`. This is deliberately **not** in `valueOf()` — the opt-in checkbox goes
+  through that on its way to HubSpot, and swapping its value for the consent sentence would change
+  what lands on the contact record.
 - `labels` makes each row self-describing: the consumer builds headers from any single row instead
   of hardcoding a schema, so a reworded question updates the header on its own. Costs 570 bytes on
   the largest category; `config.payload.summary.includeLabels: false` drops it.

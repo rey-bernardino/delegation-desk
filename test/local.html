@@ -241,6 +241,31 @@
             <textarea name="trip-musthaves" class="d-field"></textarea>
             <span class="errorMessage">Please complete this required field.</span>
           </div>
+
+          <!-- Pick any of N. Mirrors Webflow's checkbox component: one
+               .d-field-container per QUESTION holding every option, each
+               option a <label class="w-checkbox"> wrapping the input and a
+               .w-form-label span. Every option shares ONE name — that is what
+               makes it a group rather than N required questions.
+
+               Deliberately mixed: the first two carry an authored value, the
+               third does not, so the option-label fallback is exercised. -->
+          <div class="d-field-container">
+            <label class="d-field-label">trip-activities</label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="trip-activities" value="Hiking" class="d-field" />
+              <span class="w-form-label">Hiking</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="trip-activities" value="Food tour" class="d-field" />
+              <span class="w-form-label">Food tour</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="trip-activities" class="d-field" />
+              <span class="w-form-label">Museums</span>
+            </label>
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
         </div>
 
         <div form-block="gift">
@@ -253,6 +278,21 @@
             <label class="d-field-label">gift-occasion</label>
             <input type="text" name="gift-occasion" class="d-field" />
             <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <!-- MIS-AUTHORED ON PURPOSE: Webflow's default unique names, which
+               make this three required questions instead of one group. Here to
+               prove the console warning fires. -->
+          <div class="d-field-container">
+            <label class="d-field-label">gift-vibe</label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="Checkbox" class="d-field" />
+              <span class="w-form-label">Playful</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="Checkbox-2" class="d-field" />
+              <span class="w-form-label">Refined</span>
+            </label>
           </div>
         </div>
 

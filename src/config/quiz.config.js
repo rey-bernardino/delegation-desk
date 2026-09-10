@@ -37,6 +37,16 @@ export const QUIZ_CONFIG = {
     // Where a field's human-readable label comes from.
     labelSelector: ".d-field-label",
 
+    // Where ONE OPTION's label comes from inside a pick-any group. Webflow's
+    // own class, since that is what its checkbox component ships. Used only
+    // when the option has no authored value attribute.
+    optionLabelSelector: ".w-form-label",
+
+    // How the ticked options of a pick-any group are joined into the single
+    // cell the sheet gets. Comma-space reads well in a spreadsheet; pick
+    // something absent from the option text if the answers may contain commas.
+    multiValueSeparator: ", ",
+
     // The block whose fields are contact details rather than answers. Sent to
     // both destinations, and never treated as category answers.
     infoFormBlock: "info",

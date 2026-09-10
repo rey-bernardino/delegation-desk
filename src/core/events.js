@@ -79,7 +79,10 @@ export function bindEvents({
       return;
     }
 
-    if (validation.isTouched(field)) {
+    // Group-aware: ticking a second option of a pick-any question has to
+    // clear the error raised against the first, which a per-input touched
+    // check would miss.
+    if (validation.isTouchedGroup(field)) {
       validation.validateField(field);
     }
 
@@ -94,7 +97,7 @@ export function bindEvents({
       return;
     }
 
-    if (validation.isTouched(field)) {
+    if (validation.isTouchedGroup(field)) {
       validation.validateField(field);
     }
 
