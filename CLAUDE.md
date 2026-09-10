@@ -257,6 +257,42 @@ value through — no live effect, since it is empty.)
 Optional fields are still **collected**: a blank one lands in `summary.fields` as `""`, so its
 column exists in the sheet and stays aligned. Only validation treats it differently.
 
+### Capping how many options can be picked
+
+`config.validation.maxAttribute` (`field-max`) caps a pick-any group. Same `closest` resolution as
+`field-optional`, so it normally sits on the `.d-field-container` holding the group:
+
+```html
+<div class="d-field-container" field-max="2">
+```
+
+**Enforced by locking, not by scolding.** `validation.enforceLimits()` sets `disabled` on the
+group's remaining *unticked* boxes once it is at the cap, so the browser greys them and there is no
+error state to explain. Ticked boxes are never locked — the user has to be able to untick one and
+change their mind, and locking those would strand them at their first two guesses. The group's
+wrapper also gets `config.validation.limitReachedClass` (`limit-reached`) while at the cap, if you
+want to style a hint in Webflow; the limit works with no CSS at all.
+
+Disabling is safe here because nothing reads these inputs through native form serialisation — the
+quiz reads the DOM itself and writes into the hidden Webflow form's own fields — so a locked box
+cannot fall out of the payload.
+
+**Over the cap is also invalid**, which normally can't be reached but covers markup arriving
+pre-ticked beyond the limit. That must not be submittable.
+
+An unreadable limit **fails open**: a non-integer or non-positive value warns once and applies no
+cap, rather than silently capping at something nobody asked for.
+
+`field-max` and `field-optional` are independent — one caps the top end, the other the bottom.
+Together they give "pick up to 2, or none"; `field-max` alone gives "pick 1 to 2".
+
+Enforcement is wired at the four points where a lock can go stale: startup (Webflow can ship a box
+pre-ticked), every `change`, and after `[select]` and `[cmd=back]`. It deliberately walks **every**
+group on the page rather than the selected category's, because a group locked in one category is out
+of scope once another is picked — leaving its boxes disabled for whoever picks that category next.
+`fields.clearAll` dispatches `change` per field, so a category switch and a kiosk reset both unlock
+on their own.
+
 Checkboxes and radios validate on `.checked`, never `.value` — a checkbox always carries a `value`
 attribute, so reading `.value` would make an unticked box look filled in.
 

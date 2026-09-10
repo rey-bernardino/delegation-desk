@@ -30,6 +30,12 @@ export function createValidationService({ config, dom, state, lenis }) {
   // anyone authoring it, and silently making it optional would be a trap.
   const NEGATIONS = ["false", "0", "no", "off"];
 
+  const maxAttribute = rules.maxAttribute || "field-max";
+  const limitReachedClass = rules.limitReachedClass || "limit-reached";
+
+  // Warned-about elements, so a bad limit says so once rather than per change.
+  const warnedLimits = new WeakSet();
+
   function validateEmail(email) {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return regex.test(String(email).toLowerCase());
@@ -96,6 +102,51 @@ export function createValidationService({ config, dom, state, lenis }) {
 
   function groupFor(field) {
     return groupOf(field, { fieldSelector });
+  }
+
+  // How many options of a group may be ticked, or null for no limit.
+  function maxFor(group) {
+    const flagged = group.fields[0].closest(`[${maxAttribute}]`);
+
+    if (!flagged) {
+      return null;
+    }
+
+    const raw = (flagged.getAttribute(maxAttribute) || "").trim();
+    const max = Number.parseInt(raw, 10);
+
+    // Fail open: an unreadable limit leaves the question unrestricted rather
+    // than silently capping it at something nobody asked for.
+    if (!Number.isInteger(max) || max <= 0) {
+      if (!warnedLimits.has(flagged)) {
+        warnedLimits.add(flagged);
+
+        console.warn(
+          `Delegation Desk: ${maxAttribute}="${raw}" is not a positive whole ` +
+            "number, so no limit is applied to this question.",
+          flagged
+        );
+      }
+
+      return null;
+    }
+
+    return max;
+  }
+
+  function checkedCount(group) {
+    return group.fields.filter((field) => field.checked === true).length;
+  }
+
+  // Every checkbox/radio group on the page, not just the selected category's.
+  // Enforcement has to be able to UNLOCK a group it locked earlier, and by the
+  // time a category switch has happened that group is out of scope — leaving
+  // its boxes disabled for whoever picks that category next.
+  function allGroups() {
+    return groupFields(Array.from(document.querySelectorAll(fieldSelector)), {
+      fieldSelector,
+      wrapperSelector,
+    });
   }
 
   function isEmailField(field) {
@@ -166,7 +217,17 @@ export function createValidationService({ config, dom, state, lenis }) {
       // to tick all of them, and would make a radio group impossible to
       // satisfy at all, since only one of those can ever be checked.
       if (isCheckedType(field)) {
-        return optional || group.fields.some((member) => member.checked === true);
+        const checked = checkedCount(group);
+        const max = maxFor(group);
+
+        // Over the cap blocks submit. enforceLimits() normally makes this
+        // unreachable by locking the remaining boxes, but markup can arrive
+        // pre-ticked beyond the limit, and that must not be submittable.
+        if (max !== null && checked > max) {
+          return false;
+        }
+
+        return optional || checked > 0;
       }
 
       const value = String(field.value || "").trim();
@@ -263,6 +324,42 @@ export function createValidationService({ config, dom, state, lenis }) {
         invalid,
         firstInvalid: invalid[0] || null,
       };
+    },
+
+    maxFor,
+
+    // Locks the remaining options once a group is at its cap. Called from the
+    // same places validity is refreshed, including after clearAll — which
+    // dispatches change per field, so a reset unlocks on its own.
+    //
+    // Only the UNCHECKED boxes lock, never the ticked ones: the user has to be
+    // able to change their mind by unticking something first, and locking a
+    // ticked box would strand them at their first three guesses.
+    enforceLimits(groups) {
+      (groups || allGroups()).forEach((group) => {
+        if (!isCheckedType(group.fields[0]) || group.fields.length < 2) {
+          return;
+        }
+
+        const max = maxFor(group);
+        const atLimit = max !== null && checkedCount(group) >= max;
+
+        group.fields.forEach((field) => {
+          const lock = atLimit && !field.checked;
+
+          // Disabled is enough on its own — the browser greys the box, so the
+          // limit is visible with no CSS in Webflow. Nothing reads these
+          // inputs through form serialisation, so disabling them cannot drop
+          // them from the payload.
+          if (field.disabled !== lock) {
+            field.disabled = lock;
+          }
+        });
+
+        group.fields[0]
+          .closest(wrapperSelector)
+          ?.classList.toggle(limitReachedClass, atLimit);
+      });
     },
 
     // Used after a category switch wipes values: stale red borders and a stale

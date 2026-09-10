@@ -28,6 +28,10 @@ export function bindEvents({
         event.preventDefault();
         selection.select(variant);
 
+        // A retained category may already be at a group's cap, and the one
+        // being left may have been locked — enforcement clears both.
+        validation.enforceLimits();
+
         // A fresh category starts incomplete; a retained one may already pass.
         submission.refreshButton();
       }
@@ -52,6 +56,7 @@ export function bindEvents({
     if (cmd === "back") {
       event.preventDefault();
       selection.back();
+      validation.enforceLimits();
       submission.refreshButton();
       return;
     }
@@ -96,6 +101,11 @@ export function bindEvents({
     if (!field) {
       return;
     }
+
+    // Before validating, so the locked state and the validity agree. clearAll
+    // dispatches change per field, so this is also what unlocks a group on a
+    // category switch or a kiosk reset.
+    validation.enforceLimits();
 
     if (validation.isTouchedGroup(field)) {
       validation.validateField(field);

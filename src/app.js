@@ -115,6 +115,10 @@ document.addEventListener("DOMContentLoaded", () => {
         lenis,
       });
 
+      // Webflow can ship a box pre-ticked, so a group may already be at its
+      // cap before anyone has touched anything.
+      validation.enforceLimits();
+
       // Nothing is filled in yet, so the button starts greyed.
       submission.refreshButton();
 

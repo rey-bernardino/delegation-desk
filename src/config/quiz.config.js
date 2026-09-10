@@ -38,6 +38,17 @@ export const QUIZ_CONFIG = {
     // a section to cover several questions. Nearest one wins, and an explicit
     // "false" / "0" / "no" forces a field back to required.
     optionalAttribute: "field-optional",
+
+    // Caps how many options of a pick-any group can be ticked. Same
+    // resolution as optionalAttribute — read with closest, so it normally sits
+    // on the .d-field-container that holds the group. A positive whole number;
+    // anything else warns and applies no limit.
+    maxAttribute: "field-max",
+
+    // Put on the group's wrapper while it is at its cap, so Webflow can style
+    // a hint ("3 of 3 chosen"). The remaining boxes are also natively
+    // disabled, so no CSS is required for the limit to work.
+    limitReachedClass: "limit-reached",
   },
 
   payload: {

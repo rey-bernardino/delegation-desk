@@ -292,9 +292,11 @@
             <span class="errorMessage">Please complete this required field.</span>
           </div>
 
-          <!-- Flag on the CONTAINER, exempting a whole pick-any group in one
-               edit rather than per option. -->
-          <div class="d-field-container" field-optional="true">
+          <!-- Capped at 2 of 4: the remaining boxes lock once two are ticked.
+               Optional as well, so "none" is also a valid answer — the two
+               flags are independent, one caps the top end and the other the
+               bottom. -->
+          <div class="d-field-container" field-optional="true" field-max="2">
             <label class="d-field-label">gift-extras</label>
             <label class="w-checkbox">
               <input type="checkbox" name="gift-extras" value="Gift wrap" class="d-field" />
@@ -303,6 +305,45 @@
             <label class="w-checkbox">
               <input type="checkbox" name="gift-extras" value="Handwritten note" class="d-field" />
               <span class="w-form-label">Handwritten note</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-extras" value="Ribbon" class="d-field" />
+              <span class="w-form-label">Ribbon</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-extras" value="Card" class="d-field" />
+              <span class="w-form-label">Card</span>
+            </label>
+          </div>
+
+          <!-- A REQUIRED capped group: at least one, at most two. Also proves
+               a bad limit fails open rather than capping at nothing. -->
+          <div class="d-field-container" field-max="2">
+            <label class="d-field-label">gift-styles</label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-styles" value="Modern" class="d-field" />
+              <span class="w-form-label">Modern</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-styles" value="Classic" class="d-field" />
+              <span class="w-form-label">Classic</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-styles" value="Playful" class="d-field" />
+              <span class="w-form-label">Playful</span>
+            </label>
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <div class="d-field-container" field-optional="true" field-max="lots">
+            <label class="d-field-label">gift-badlimit</label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-badlimit" value="A" class="d-field" />
+              <span class="w-form-label">A</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-badlimit" value="B" class="d-field" />
+              <span class="w-form-label">B</span>
             </label>
           </div>
           <div class="d-field-container">
