@@ -269,6 +269,42 @@
         </div>
 
         <div form-block="gift">
+          <!-- Optional, per-field: blank passes, but a filled-in value is
+               still checked (see the optional email below). -->
+          <div class="d-field-container">
+            <label class="d-field-label">gift-notes</label>
+            <input type="text" name="gift-notes" class="d-field" field-optional="true" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <!-- Optional AND format-checked: garbage must still fail. -->
+          <div class="d-field-container">
+            <label class="d-field-label">gift-altemail</label>
+            <input type="email" name="gift-altemail" class="d-field" field-optional="true" />
+            <span class="errorMessage">Please enter a valid email address.</span>
+          </div>
+
+          <!-- The trap: reads as "required" to whoever authored it, and must
+               behave that way. -->
+          <div class="d-field-container">
+            <label class="d-field-label">gift-mustfill</label>
+            <input type="text" name="gift-mustfill" class="d-field" field-optional="false" />
+            <span class="errorMessage">Please complete this required field.</span>
+          </div>
+
+          <!-- Flag on the CONTAINER, exempting a whole pick-any group in one
+               edit rather than per option. -->
+          <div class="d-field-container" field-optional="true">
+            <label class="d-field-label">gift-extras</label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-extras" value="Gift wrap" class="d-field" />
+              <span class="w-form-label">Gift wrap</span>
+            </label>
+            <label class="w-checkbox">
+              <input type="checkbox" name="gift-extras" value="Handwritten note" class="d-field" />
+              <span class="w-form-label">Handwritten note</span>
+            </label>
+          </div>
           <div class="d-field-container">
             <label class="d-field-label">gift-whoitsfor</label>
             <input type="text" name="gift-whoitsfor" class="d-field" />

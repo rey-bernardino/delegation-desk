@@ -22,6 +22,13 @@ export function createValidationService({ config, dom, state, lenis }) {
   const wrapperSelector = rules.fieldWrapper || ".d-field-container";
   const invalidClass = rules.invalidClass || "invalid";
   const fieldSelector = config.fieldSelector || ".d-field";
+  const optionalAttribute = rules.optionalAttribute || "field-optional";
+
+  // Webflow's custom-attribute panel wants a name AND a value, so a bare
+  // attribute isn't always authorable — treat a present-but-empty one as true.
+  // The negations matter more: field-optional="false" reads as "required" to
+  // anyone authoring it, and silently making it optional would be a trap.
+  const NEGATIONS = ["false", "0", "no", "off"];
 
   function validateEmail(email) {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -57,13 +64,34 @@ export function createValidationService({ config, dom, state, lenis }) {
     wrapperOf(field)?.classList.remove(invalidClass);
   }
 
-  // Fields in an optional block are never required.
+  // Fields in an optional block are never required, and so is anything
+  // carrying the optional attribute at or above itself.
   function isOptionalField(field) {
     const holder = field.closest("[form-block]");
 
-    return (rules.optionalFormBlocks || []).includes(
-      holder?.getAttribute("form-block")
-    );
+    if (
+      (rules.optionalFormBlocks || []).includes(
+        holder?.getAttribute("form-block")
+      )
+    ) {
+      return true;
+    }
+
+    // closest, so the flag can be authored on the input, on the wrapper (which
+    // is how a whole pick-any group is exempted in one edit), or on a section.
+    // Nearest wins, which lets one required field sit inside an optional
+    // section.
+    const flagged = field.closest(`[${optionalAttribute}]`);
+
+    if (!flagged) {
+      return false;
+    }
+
+    const raw = (flagged.getAttribute(optionalAttribute) || "")
+      .trim()
+      .toLowerCase();
+
+    return !NEGATIONS.includes(raw);
   }
 
   function groupFor(field) {
@@ -129,10 +157,7 @@ export function createValidationService({ config, dom, state, lenis }) {
     // its boxes is ticked.
     isGroupValid(group) {
       const field = group.fields[0];
-
-      if (isOptionalField(field)) {
-        return true;
-      }
+      const optional = isOptionalField(field);
 
       // A checkbox always has a value attribute, so reading .value would make
       // an unticked box look filled in.
@@ -141,13 +166,16 @@ export function createValidationService({ config, dom, state, lenis }) {
       // to tick all of them, and would make a radio group impossible to
       // satisfy at all, since only one of those can ever be checked.
       if (isCheckedType(field)) {
-        return group.fields.some((member) => member.checked === true);
+        return optional || group.fields.some((member) => member.checked === true);
       }
 
       const value = String(field.value || "").trim();
 
+      // Optional means BLANK is acceptable — not that anything is. A filled-in
+      // optional email still has to be a real address, or the CRM quietly
+      // collects addresses that bounce.
       if (!value) {
-        return false;
+        return optional;
       }
 
       if (isEmailField(field)) {

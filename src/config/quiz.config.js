@@ -31,6 +31,13 @@ export const QUIZ_CONFIG = {
     // by decision, so nothing is currently exempt. The mechanism stays for
     // when something genuinely optional is added.
     optionalFormBlocks: [],
+
+    // Per-field escape hatch, authored in Webflow as a custom attribute.
+    // Honoured anywhere at or above the input, so it can sit on the input
+    // itself, on the .d-field-container to cover a whole pick-any group, or on
+    // a section to cover several questions. Nearest one wins, and an explicit
+    // "false" / "0" / "no" forces a field back to required.
+    optionalAttribute: "field-optional",
   },
 
   payload: {

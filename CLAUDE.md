@@ -230,8 +230,32 @@ Every field in the **current** category is required. Tactics follow athena-form'
 sit in the DOM with empty inputs and must never count against the user — never validate by querying
 `.d-field` globally.
 
-`config.validation.optionalFormBlocks` exempts a block from being required. It is currently empty:
-the opt-in is required by decision, so the submit button stays grey until the box is ticked.
+`config.validation.optionalFormBlocks` exempts a whole block from being required. It is currently
+empty: the opt-in is required by decision, so the submit button stays grey until the box is ticked.
+
+### Optional fields
+
+`config.validation.optionalAttribute` (`field-optional`) exempts a single question. Authored in
+Webflow as a custom attribute, and read with `closest`, so it can go on:
+
+| Where | Effect |
+| --- | --- |
+| the input | that one field |
+| the `.d-field-container` | every field in it — how a pick-any group is exempted in one edit rather than per option |
+| any ancestor | every question beneath it |
+
+**Nearest wins**, so `field-optional="false"` on a field keeps it required inside an optional
+container. `"false"`, `"0"`, `"no"` and `"off"` all read as required — Webflow's attribute panel
+wants a name *and* a value, so a present-but-empty value counts as true, but silently treating
+`field-optional="false"` as optional would be a trap for whoever authored it.
+
+**Optional means blank is acceptable, not that anything is.** A filled-in optional field is still
+format-checked, so an optional email with a typo fails validation rather than sending the CRM an
+address that bounces. (This also tightens `optionalFormBlocks`, which previously let a malformed
+value through — no live effect, since it is empty.)
+
+Optional fields are still **collected**: a blank one lands in `summary.fields` as `""`, so its
+column exists in the sheet and stays aligned. Only validation treats it differently.
 
 Checkboxes and radios validate on `.checked`, never `.value` — a checkbox always carries a `value`
 attribute, so reading `.value` would make an unticked box look filled in.
