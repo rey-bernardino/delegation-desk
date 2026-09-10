@@ -695,6 +695,33 @@ someone working in the sheet.
 Script Properties the ingest needs: `WEBFLOW_API_TOKEN`, `FORM_ID`, and `RESET_PASSWORD`. None of
 them are in this repo — it is public, so jsDelivr can serve the bundle.
 
+### The Logs tab collapses quiet runs
+
+A five-minute trigger writes 288 rows a day, and on a quiet stretch every one of them is identical
+— which buries the runs that actually did something. So a run that changed nothing **overwrites**
+the previous row instead of appending, when that row was also a quiet one.
+
+The `Status` column is both the label and the marker: `No new submissions ×12` says how many
+consecutive quiet runs that single row now stands for, so an overwritten row can still tell you how
+long it has been idle. `wfQuietRunCount_` parses the count back out; anything unparseable restarts
+at one, so a hand-edited cell degrades to an extra row rather than an error.
+
+A run is quiet only when it added nothing, backfilled nothing, hit no error, and found no
+submission whose category sheet is missing. **Errors and missing-sheet runs always append** — those
+rows are the record that something needs attention, and collapsing them would overwrite it. Two
+errors in a row therefore produce two rows.
+
+Duplicates deliberately do **not** count as activity: every run re-fetches the whole history and
+skips what it has already seen, so a healthy idle run always reports them.
+
+`Status` is also honest about what happened — `Ingested`, `Error`, `No category sheet`, or the quiet
+label — because a run that only found submissions with no category sheet ingested nothing, and
+saying "Ingested" would hide the one thing worth looking at.
+
+Pasting this over an existing Logs sheet appends `Status` as the **last** column, and the first run
+after the upgrade appends rather than overwriting, since the historic rows carry no marker. Reset
+the sheet to get the intended column order.
+
 The reset is split in two on purpose: the easy-to-run name is the one that does nothing. The
 destructive half also asks for `RESET_PASSWORD`, which guards a mis-click in a dropdown rather than
 providing security — anyone who can open the script can read the property. Both live

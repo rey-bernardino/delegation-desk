@@ -513,6 +513,68 @@ function wfCategoryRow_(parsed) {
   };
 }
 
+/**
+ * A run that changed nothing writes this in the Status column, and the NEXT
+ * such run overwrites that row instead of appending. Without it a five-minute
+ * trigger buries every real ingest under hundreds of identical rows overnight.
+ *
+ * The trailing count is how many consecutive quiet runs that one row now
+ * stands for — otherwise an overwritten row cannot say whether it has been
+ * quiet for one run or two hundred.
+ */
+var LOG_QUIET_STATUS = "No new submissions";
+
+/** "No new submissions ×12" -> 12. Anything unparseable restarts the count. */
+function wfQuietRunCount_(statusCell) {
+  var text = String(statusCell || "").trim();
+
+  if (text.indexOf(LOG_QUIET_STATUS) !== 0) {
+    return 0;
+  }
+
+  var match = text.match(/×\s*(\d+)\s*$/);
+
+  return match ? Number(match[1]) : 1;
+}
+
+/**
+ * A quiet run is one that wrote nothing AND had nothing to report. Errors and
+ * submissions with no category sheet always append, because collapsing those
+ * would overwrite the only record that something needs attention.
+ *
+ * Duplicates do NOT count as activity: every run re-fetches the whole history
+ * and skips what it has already seen, so a healthy idle run always has them.
+ */
+/**
+ * What the Status column says for a run that is NOT quiet. Kept honest: a run
+ * that only found submissions with no category sheet ingested nothing, and
+ * labelling it "Ingested" would hide the thing worth looking at.
+ */
+function wfRunStatus_(stats) {
+  if (stats.errors.length) {
+    return "Error";
+  }
+
+  if (stats.added || stats.backfilled) {
+    return "Ingested";
+  }
+
+  if (stats.missingSheet) {
+    return "No category sheet";
+  }
+
+  return LOG_QUIET_STATUS;
+}
+
+function wfIsQuietRun_(stats) {
+  return (
+    stats.added === 0 &&
+    stats.backfilled === 0 &&
+    stats.missingSheet === 0 &&
+    stats.errors.length === 0
+  );
+}
+
 function wfWriteLog_(stats) {
   var sheet = wfGetSheet_(SHEET_LOGS);
 
@@ -523,6 +585,7 @@ function wfWriteLog_(stats) {
 
   var headers = wfEnsureHeaders_(sheet, [
     "Run at",
+    "Status",
     "Fetched",
     "Added",
     "Backfilled",
@@ -533,19 +596,53 @@ function wfWriteLog_(stats) {
     "Added IDs",
   ]);
 
-  sheet.appendRow(
-    wfRowFor_(headers, {
-      "Run at": new Date(),
-      Fetched: stats.fetched,
-      Added: stats.added,
-      Backfilled: stats.backfilled,
-      Duplicates: stats.duplicates,
-      "No category sheet": stats.missingSheet,
-      Errors: stats.errors.length ? stats.errors.join(" | ") : "",
-      "Duration (ms)": stats.durationMs,
-      "Added IDs": stats.addedIds.join(", ").slice(0, 5000),
-    })
-  );
+  var quiet = wfIsQuietRun_(stats);
+  var lastRow = sheet.getLastRow();
+  var statusColumn = headers.indexOf("Status") + 1;
+
+  // Overwrite only when THIS run is quiet and the row already sitting there is
+  // a quiet one too. Row 1 is the header, so there must be a data row to reuse.
+  var previousQuietRuns = 0;
+
+  if (quiet && lastRow > 1 && statusColumn) {
+    previousQuietRuns = wfQuietRunCount_(
+      sheet.getRange(lastRow, statusColumn).getValue()
+    );
+  }
+
+  var overwrite = previousQuietRuns > 0;
+
+  var status = quiet
+    ? LOG_QUIET_STATUS + " ×" + (previousQuietRuns + 1)
+    : wfRunStatus_(stats);
+
+  var row = wfRowFor_(headers, {
+    "Run at": new Date(),
+    Status: status,
+    Fetched: stats.fetched,
+    Added: stats.added,
+    Backfilled: stats.backfilled,
+    Duplicates: stats.duplicates,
+    "No category sheet": stats.missingSheet,
+    Errors: stats.errors.length ? stats.errors.join(" | ") : "",
+    "Duration (ms)": stats.durationMs,
+    "Added IDs": stats.addedIds.join(", ").slice(0, 5000),
+  });
+
+  if (!overwrite) {
+    sheet.appendRow(row);
+    return;
+  }
+
+  // setValues needs the grid to exist; appendRow grows it, this does not.
+  if (sheet.getMaxColumns() < headers.length) {
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      headers.length - sheet.getMaxColumns()
+    );
+  }
+
+  sheet.getRange(lastRow, 1, 1, headers.length).setValues([row]);
 }
 
 /* ---------------------------------------------------------------- ingest -- */
